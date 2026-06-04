@@ -2,7 +2,7 @@ require('dotenv').config();
 const { Telegraf } = require('telegraf');
 const express = require('express');
 
-const BOT_TOKEN = process.env.BOT_TOKEN || "8854792431:AAFQfChcPSDVw6Jr9OIn7ohVbFUeMPTSQ-s"; 
+const BOT_TOKEN = process.env.BOT_TOKEN || "8854792431:AAHfC03j9se_NU6fG4k4MBpnWkoFYWqJp1o"; 
 const ADMIN_ID = "8584049635"; 
 
 const bot = new Telegraf(BOT_TOKEN);
