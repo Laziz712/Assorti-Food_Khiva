@@ -283,18 +283,12 @@ bot.hears("📞 Admin bilan aloqa", (ctx) => {
     );
 });
 
-app.get('/', (req, res) => {
-    res.send('Assorti Food bot is actively running!');
-});
 
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-    console.log(`Port ulandi: ${PORT}`);
-});
+app.get('/', (req, res) => res.send('Assorti Food bot ishlayapti!'));
+
+const PORT = process.env.PORT || 10000;
+app.listen(PORT, () => console.log(`Server ${PORT} portida ishga tushdi.`));
 
 bot.launch()
-    .then(() => console.log('🚀 Assorti Food mukammal va chiroyli holatda ishga tushdi!'))
-    .catch((err) => console.error(err));
-
-process.once('SIGINT', () => bot.stop('SIGINT'));
-process.once('SIGTERM', () => bot.stop('SIGTERM'));
+    .then(() => console.log('Bot muvaffaqiyatli ishga tushdi!'))
+    .catch((err) => console.error('Bot ishga tushishida xatolik:', err));
