@@ -1,0 +1,300 @@
+require('dotenv').config();
+const { Telegraf } = require('telegraf');
+const express = require('express');
+
+const BOT_TOKEN = process.env.BOT_TOKEN || "8854792431:AAFQfChcPSDVw6Jr9OIn7ohVbFUeMPTSQ-s"; 
+const ADMIN_ID = "8584049635"; 
+
+const bot = new Telegraf(BOT_TOKEN);
+const app = express();
+
+const userCarts = {};
+const userSteps = {};
+
+const mainKeyboard = {
+    reply_markup: {
+        keyboard: [
+            [{ text: "🍔 Menyu" }],
+            [{ text: "🛒 Savat" }, { text: "📍 Bizning Manzil" }],
+            [{ text: "📞 Admin bilan aloqa" }]
+        ],
+        resize_keyboard: true
+    }
+};
+
+const products = {
+    burger: { name: "🌭 Xot-Dog", price: 15000, image: "https://i.pinimg.com/736x/fc/f8/25/fcf825ad35e7084bb5a845845e0cff91.jpg" },
+    lavash: { name: "🌯 Lavash", price: 35000, image: "https://i.pinimg.com/736x/37/64/87/37648797115b6c41fe2c2afda620e4f1.jpg" },
+    pizza: { name: "🍕 Pitsa Assorti", price: 75000, image: "https://i.pinimg.com/736x/c6/f0/64/c6f064ed1e92e2e864672f396b7fd8a7.jpg" },
+    cola: { name: "🥤 Coca-Cola 1.5L", price: 15000, image: "https://images.uzum.uz/cia493tenntd8rfc2s40/original.jpg" }
+};
+
+bot.start((ctx) => {
+    const firstName = ctx.from.first_name;
+    userCarts[ctx.from.id] = [];
+    delete userSteps[ctx.from.id];
+    
+    ctx.reply(
+        `✨ Assorti Food Khiva botiga xush kelibsiz, ${firstName}!\n\n` +
+        `🍕 Xivadagi eng mazzali fast-food va taomlarga buyurtma berishni boshlashingiz mumkin.\n\n` +
+        `👇 Quyidagi menyudan kerakli bo'limni tanlang:`,
+        { parse_mode: 'HTML', ...mainKeyboard }
+    );
+});
+
+bot.hears("🍔 Menyu", async (ctx) => {
+    delete userSteps[ctx.from.id];
+    await ctx.reply("✨ Assorti Food chiroyli menyusi yuklanmoqda...", { parse_mode: 'HTML' });
+
+    for (const key in products) {
+        const item = products[key];
+        await ctx.replyWithPhoto(item.image, {
+            caption: `✨ ${item.name}\n\n💰 Narxi: ${item.price.toLocaleString('uz-UZ')} so'm`,
+            parse_mode: 'HTML',
+            reply_markup: {
+                inline_keyboard: [[{ text: "📥 Savatga qo'shish", callback_data: `add_${key}` }]]
+            }
+        });
+    }
+});
+
+Object.keys(products).forEach(key => {
+    bot.action(`add_${key}`, (ctx) => {
+        const userId = ctx.from.id;
+        if (!userCarts[userId]) userCarts[userId] = [];
+        userCarts[userId].push(products[key]);
+        ctx.answerCbQuery(`${products[key].name} savatga qo'shildi! ✅`);
+    });
+});
+
+bot.hears("🛒 Savat", (ctx) => {
+    delete userSteps[ctx.from.id];
+    const userId = ctx.from.id;
+    const cart = userCarts[userId] || [];
+    
+    if (cart.length === 0) {
+        return ctx.reply("🛒 Sizning savatingiz bo'sh! \n\nTaom buyurtma qilish uchun avval 🍔 Menyu bo'limiga kiring.", { parse_mode: 'HTML' });
+    }
+    
+    let text = "🛒 Sizning savatingiz:\n\n";
+    let total = 0;
+    cart.forEach((item, index) => {
+        text += `${index + 1}. ${item.name} — ${item.price.toLocaleString('uz-UZ')} so'm\n`;
+        total += item.price;
+    });
+    text += `\n💰 Jami hisob: ${total.toLocaleString('uz-UZ')} so'm\n\nAssorti Food Khiva tizimi orqali xavfsiz buyurtma berishni boshlash uchun pastdagi tugmani bosing:`;
+    
+    ctx.reply(text, {
+        parse_mode: 'HTML',
+        reply_markup: {
+            inline_keyboard: [
+                [{ text: "🚖 Buyurtma berishni boshlash", callback_data: "start_order" }],
+                [{ text: "🗑 Savatni tozalash", callback_data: "clear_cart" }]
+            ]
+        }
+    });
+});
+
+bot.action("clear_cart", (ctx) => {
+    userCarts[ctx.from.id] = [];
+    ctx.answerCbQuery("Savat tozalandi! 🗑");
+    ctx.editMessageText("🗑 Savatingiz tozalandi.");
+});
+
+bot.action("start_order", (ctx) => {
+    const userId = ctx.from.id;
+    userSteps[userId] = { step: "WAITING_NAME", data: {} };
+    ctx.answerCbQuery();
+    ctx.reply("👤 1-bosqich. Iltimos, ismingizni kiriting:", { parse_mode: 'HTML', reply_markup: { remove_keyboard: true } });
+});
+
+bot.on("text", async (ctx, next) => {
+    const userId = ctx.from.id;
+    const userState = userSteps[userId];
+
+    if (!userState) return next();
+    const text = ctx.message.text;
+
+    if (userState.step === "WAITING_NAME") {
+        userState.data.name = text;
+        userState.step = "WAITING_PHONE";
+        return ctx.reply("📞 2-bosqich. Telefon raqamingizni kiriting (Masalan: +998991234567):", {
+            parse_mode: 'HTML',
+            reply_markup: {
+                keyboard: [[{ text: "📱 Raqamni yuborish", request_contact: true }]],
+                resize_keyboard: true,
+                one_time_keyboard: true
+            }
+        });
+    }
+
+    if (userState.step === "WAITING_PHONE") {
+        userState.data.phone = text;
+        return goToDeliveryStep(ctx, userState);
+    }
+});
+
+bot.on("contact", (ctx) => {
+    const userId = ctx.from.id;
+    const userState = userSteps[userId];
+
+    if (userState && userState.step === "WAITING_PHONE") {
+        userState.data.phone = ctx.message.contact.phone_number;
+        goToDeliveryStep(ctx, userState);
+    }
+});
+
+function goToDeliveryStep(ctx, userState) {
+    userState.step = "WAITING_DELIVERY";
+    ctx.reply("🚖 <b>3-bosqich.</b> Yetkazib berish turini tanlang:", {
+        parse_mode: 'HTML',
+        reply_markup: {
+            inline_keyboard: [
+                [{ text: "🛵 Yetkazib berish (Dostavka)", callback_data: "del_delivery" }],
+                [{ text: "🏃‍♂️ O'zim olib ketaman (Samovivoz)", callback_data: "del_pickup" }]
+            ]
+        }
+    });
+}
+
+bot.action(["del_delivery", "del_pickup"], (ctx) => {
+    const userId = ctx.from.id;
+    const userState = userSteps[userId];
+    if (!userState) return ctx.reply("Xatolik yuz berdi, iltimos /start bosing.");
+
+    ctx.answerCbQuery();
+
+    if (ctx.callbackQuery.data === "del_delivery") {
+        userState.data.delivery = "🛵 Dostavka";
+        userState.step = "WAITING_LOCATION";
+        ctx.reply("📍 4-bosqich. Taom yetkazib berilishi kerak bo'lgan joylashuvni (lokatsiyani) pastdagi maxsus tugma orqali yuboring:", {
+            parse_mode: 'HTML',
+            reply_markup: {
+                keyboard: [[{ text: "📍 Joylashuvni yuborish", request_location: true }]],
+                resize_keyboard: true,
+                one_time_keyboard: true
+            }
+        });
+    } else {
+        userState.data.delivery = "🏃‍♂️ O'zim olib ketaman";
+        userState.data.location = null; 
+        goToPaymentStep(ctx, userState, "4-bosqich");
+    }
+});
+
+bot.on("location", (ctx) => {
+    const userId = ctx.from.id;
+    const userState = userSteps[userId];
+
+    if (userState && userState.step === "WAITING_LOCATION") {
+        userState.data.location = {
+            latitude: ctx.message.location.latitude,
+            longitude: ctx.message.location.longitude
+        };
+        goToPaymentStep(ctx, userState, "5-bosqich");
+    }
+});
+
+function goToPaymentStep(ctx, userState, stepNumber) {
+    userState.step = "WAITING_PAYMENT";
+    ctx.reply(`💳 ${stepNumber}. To'lov turini tanlang:`, {
+        parse_mode: 'HTML',
+        reply_markup: {
+            inline_keyboard: [
+                [{ text: "🟢 Click", callback_data: "pay_click" }, { text: "🔵 Payme", callback_data: "pay_payme" }],
+                [{ text: "💵 Naqd pul orqali", callback_data: "pay_cash" }]
+            ]
+        }
+    });
+}
+
+bot.action(["pay_click", "pay_payme", "pay_cash"], async (ctx) => {
+    const userId = ctx.from.id;
+    const userState = userSteps[userId];
+    const cart = userCarts[userId] || [];
+
+    if (!userState || cart.length === 0) {
+        return ctx.answerCbQuery("Xatolik yuz berdi!", { show_alert: true });
+    }
+
+    let paymentMethod = "";
+    if (ctx.callbackQuery.data === "pay_click") paymentMethod = "🟢 Click";
+    if (ctx.callbackQuery.data === "pay_payme") paymentMethod = "🔵 Payme";
+    if (ctx.callbackQuery.data === "pay_cash") paymentMethod = "💵 Naqd";
+
+    userState.data.payment = paymentMethod;
+    ctx.answerCbQuery();
+
+    let adminText = `🚨 ASSORTI FOOD: YANGI BUYURTMA! 🚨\n`;
+    adminText += `━━━━━━━━━━━━━━━━━━━━━━\n\n`;
+    adminText += `👤 Mijoz: <b>${userState.data.name}</b>\n`;
+    adminText += `📞 Telefon: <code>${userState.data.phone}</code>\n`;
+    adminText += `🚖 Tur: <b>${userState.data.delivery}</b>\n`;
+    adminText += `💳 To'lov: <b>${userState.data.payment}</b>\n`;
+    adminText += `🆔 <b>ID:</b> <code>${userId}</code>\n\n`;
+    adminText += `━━━━━━━━━━━━━━━━━━━━━━\n`;
+    adminText += `📦 <b>Taomlar ro'yxati:</b>\n`;
+
+    let total = 0;
+    cart.forEach((item, index) => {
+        adminText += `${index + 1}. ${item.name} — ${item.price.toLocaleString('uz-UZ')} so'm\n`;
+        total += item.price;
+    });
+
+    adminText += `\n💰 Umumiy summa: ${total.toLocaleString('uz-UZ')}</b> so'm\n`;
+    adminText += `━━━━━━━━━━━━━━━━━━━━━━`;
+
+    try {
+        if (userState.data.location) {
+            const msg = await ctx.telegram.sendMessage(ADMIN_ID, adminText, { parse_mode: 'HTML' });
+            await ctx.telegram.sendLocation(ADMIN_ID, userState.data.location.latitude, userState.data.location.longitude, {
+                reply_to_message_id: msg.message_id
+            });
+        } else {
+            await ctx.telegram.sendMessage(ADMIN_ID, adminText, { parse_mode: 'HTML' });
+        }
+        
+        userCarts[userId] = []; 
+        delete userSteps[userId];
+
+        await ctx.editMessageText(`🎉 Rahmat! Buyurtmangiz muvaffaqiyatli qabul qilindi.\n\nOperatorlarimiz va kuryerlarimiz tez orada siz bilan bog'lanishadi.`, { parse_mode: 'HTML' });
+        await ctx.reply("Asosiy menyuga qaytdingiz:", mainKeyboard);
+    } catch (err) {
+        console.error("Adminga yuborishda xatolik:", err);
+        ctx.reply("Xatolik yuz berdi. Iltimos, admin avval botga kirib /start bosganini tekshiring!", mainKeyboard);
+    }
+});
+
+bot.hears("📍 Bizning Manzil", async (ctx) => {
+    delete userSteps[ctx.from.id];
+    await ctx.reply("📍 Assorti Food Khiva", { parse_mode: 'HTML' });
+    await ctx.replyWithLocation(41.397776, 60.3598305);
+});
+
+bot.hears("📞 Admin bilan aloqa", (ctx) => {
+    delete userSteps[ctx.from.id];
+    ctx.reply(
+        "📞 Assorti Food Khiva Adminstratsiyasi \n\n" +
+        "Savollar va takliflar bo'lsa, bemalol biz bilan bog'laning:\n\n" +
+        "👨‍💻 Admin: @lazizshavkatov712\n" +
+        "☎️ Telefon: +998972815050\n" +
+        "⏱ Ish vaqti: 24/7",
+        { parse_mode: 'HTML' }
+    );
+});
+
+app.get('/', (req, res) => {
+    res.send('Assorti Food bot is actively running!');
+});
+
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => {
+    console.log(`Port ulandi: ${PORT}`);
+});
+
+bot.launch()
+    .then(() => console.log('🚀 Assorti Food mukammal va chiroyli holatda ishga tushdi!'))
+    .catch((err) => console.error(err));
+
+process.once('SIGINT', () => bot.stop('SIGINT'));
+process.once('SIGTERM', () => bot.stop('SIGTERM'));
