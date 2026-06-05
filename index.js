@@ -2,8 +2,13 @@ require('dotenv').config();
 const { Telegraf } = require('telegraf');
 const express = require('express');
 
-const BOT_TOKEN = process.env.BOT_TOKEN || "8854792431:AAHfC03j9se_NU6fG4k4MBpnWkoFYWqJp1o"; 
-const ADMIN_ID = "8584049635"; 
+const BOT_TOKEN = process.env.BOT_TOKEN || "8854792431:AAEqBTYvlzWiwebccUHT41qC92yOtDuGkNE"; 
+const ADMIN_ID = process.env.ADMIN_ID || "8584049635"; 
+
+if (!BOT_TOKEN) {
+    console.error("Xatolik: BOT_TOKEN topilmadi! Render'da Environment Variables qismini tekshiring.");
+    process.exit(1);
+}
 
 const bot = new Telegraf(BOT_TOKEN);
 const app = express();
@@ -112,7 +117,6 @@ bot.on("text", async (ctx) => {
     const userId = ctx.from.id;
     const userState = userSteps[userId];
 
-
     if (!userState) {
         if (ctx.message.text === "🍔 Menyu" || ctx.message.text === "🛒 Savat" || ctx.message.text === "📍 Bizning Manzil" || ctx.message.text === "📞 Admin bilan aloqa") {
             return;
@@ -153,7 +157,7 @@ bot.on("contact", (ctx) => {
 
 function goToDeliveryStep(ctx, userState) {
     userState.step = "WAITING_DELIVERY";
-    ctx.reply("🚖 <b>3-bosqich.</b> Yetkazib berish turini tanlang:", {
+    ctx.reply("🚖 3-bosqich. Yetkazib berish turini tanlang:", {
         parse_mode: 'HTML',
         reply_markup: {
             inline_keyboard: [
@@ -248,7 +252,6 @@ bot.action(["pay_click", "pay_payme", "pay_cash"], async (ctx) => {
         total += item.price;
     });
 
-
     adminText += `\n💰 <b>Umumiy summa:</b> ${total.toLocaleString('uz-UZ')} so'm\n`;
     adminText += `━━━━━━━━━━━━━━━━━━━━━━`;
 
@@ -291,15 +294,24 @@ bot.hears("📞 Admin bilan aloqa", (ctx) => {
     );
 });
 
+const PORT = process.env.PORT || 10000;
+const URL = process.env.RENDER_EXTERNAL_URL; 
+
+app.use(bot.webhookCallback('/bot'));
+
 app.get('/', (req, res) => res.send('Assorti Food bot ishlayapti!'));
 
-const PORT = process.env.PORT || 10000;
-app.listen(PORT, () => console.log(`Server ${PORT} portida ishga tushdi.`));
-
-bot.launch()
-    .then(() => console.log('Bot muvaffaqiyatli ishga tushdi!'))
-    .catch((err) => console.error('Bot ishga tushishida xatolik:', err));
-
+app.listen(PORT, async () => {
+    console.log(`Server ${PORT} portida ishga tushdi.`);
+    if (URL) {
+        try {
+            await bot.telegram.setWebhook(`${URL}/bot`);
+            console.log('Webhook muvaffaqiyatli o\'rnatildi!');
+        } catch (err) {
+            console.error('Webhook o\'rnatishda xatolik:', err);
+        }
+    }
+});
 
 process.once('SIGINT', () => bot.stop('SIGINT'));
 process.once('SIGTERM', () => bot.stop('SIGTERM'));
