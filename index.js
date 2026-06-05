@@ -108,11 +108,18 @@ bot.action("start_order", (ctx) => {
     ctx.reply("👤 1-bosqich. Iltimos, ismingizni kiriting:", { parse_mode: 'HTML', reply_markup: { remove_keyboard: true } });
 });
 
-bot.on("text", async (ctx, next) => {
+bot.on("text", async (ctx) => {
     const userId = ctx.from.id;
     const userState = userSteps[userId];
 
-    if (!userState) return next();
+
+    if (!userState) {
+        if (ctx.message.text === "🍔 Menyu" || ctx.message.text === "🛒 Savat" || ctx.message.text === "📍 Bizning Manzil" || ctx.message.text === "📞 Admin bilan aloqa") {
+            return;
+        }
+        return ctx.reply("Iltimos, quyidagi menyudan foydalaning:", mainKeyboard);
+    }
+    
     const text = ctx.message.text;
 
     if (userState.step === "WAITING_NAME") {
@@ -241,7 +248,8 @@ bot.action(["pay_click", "pay_payme", "pay_cash"], async (ctx) => {
         total += item.price;
     });
 
-    adminText += `\n💰 Umumiy summa: ${total.toLocaleString('uz-UZ')}</b> so'm\n`;
+
+    adminText += `\n💰 <b>Umumiy summa:</b> ${total.toLocaleString('uz-UZ')} so'm\n`;
     adminText += `━━━━━━━━━━━━━━━━━━━━━━`;
 
     try {
@@ -261,7 +269,7 @@ bot.action(["pay_click", "pay_payme", "pay_cash"], async (ctx) => {
         await ctx.reply("Asosiy menyuga qaytdingiz:", mainKeyboard);
     } catch (err) {
         console.error("Adminga yuborishda xatolik:", err);
-        ctx.reply("Xatolik yuz berdi. Iltimos, admin avval botga kirib /start bosganini tekshiring!", mainKeyboard);
+        ctx.reply("⚠️ Xatolik yuz berdi. Iltimos, admin avval botga kirib /start bosganini tekshiring!", mainKeyboard);
     }
 });
 
@@ -283,7 +291,6 @@ bot.hears("📞 Admin bilan aloqa", (ctx) => {
     );
 });
 
-
 app.get('/', (req, res) => res.send('Assorti Food bot ishlayapti!'));
 
 const PORT = process.env.PORT || 10000;
@@ -292,3 +299,7 @@ app.listen(PORT, () => console.log(`Server ${PORT} portida ishga tushdi.`));
 bot.launch()
     .then(() => console.log('Bot muvaffaqiyatli ishga tushdi!'))
     .catch((err) => console.error('Bot ishga tushishida xatolik:', err));
+
+
+process.once('SIGINT', () => bot.stop('SIGINT'));
+process.once('SIGTERM', () => bot.stop('SIGTERM'));
