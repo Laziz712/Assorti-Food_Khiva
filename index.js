@@ -238,13 +238,16 @@ bot.action(["pay_click", "pay_payme", "pay_cash"], async (ctx) => {
 
     let adminText = `🚨 ASSORTI FOOD: YANGI BUYURTMA! 🚨\n`;
     adminText += `━━━━━━━━━━━━━━━━━━━━━━\n\n`;
-    adminText += `👤 Mijoz: <b>${userState.data.name}</b>\n`;
-    adminText += `📞 Telefon: <code>${userState.data.phone}</code>\n`;
-    adminText += `🚖 Tur: <b>${userState.data.delivery}</b>\n`;
-    adminText += `💳 To'lov: <b>${userState.data.payment}</b>\n`;
-    adminText += `🆔 <b>ID:</b> <code>${userId}</code>\n\n`;
-    adminText += `━━━━━━━━━━━━━━━━━━━━━━\n`;
-    adminText += `📦 <b>Taomlar ro'yxati:</b>\n`;
+    adminText += `👤 Mijoz: ${userState.data.name}\n`;
+    adminText += `📞 Telefon: ${userState.data.phone}\n`;
+    adminText += `🚖 Tur: ${userState.data.delivery}\n`;
+    adminText += `💳 To'lov: ${userState.data.payment}\n`;
+    adminText += `🆔 ID: ${userId}\n`;
+    if (ctx.from.username) {
+        adminText += `🌐 Telegram: @${ctx.from.username}\n`;
+    }
+    adminText += `\n━━━━━━━━━━━━━━━━━━━━━━\n`;
+    adminText += `📦 Taomlar ro'yxati:\n`;
 
     let total = 0;
     cart.forEach((item, index) => {
@@ -252,17 +255,22 @@ bot.action(["pay_click", "pay_payme", "pay_cash"], async (ctx) => {
         total += item.price;
     });
 
-    adminText += `\n💰 <b>Umumiy summa:</b> ${total.toLocaleString('uz-UZ')} so'm\n`;
-    adminText += `━━━━━━━━━━━━━━━━━━━━━━`;
+    adminText += `\n💰 Umumiy summa: ${total.toLocaleString('uz-UZ')} so'm\n`;
+    adminText += `━━━━━━━━━━━━━━━━━━━━━━\n`;
+
+    if (userState.data.location) {
+        const lat = userState.data.location.latitude;
+        const lon = userState.data.location.longitude;
+        adminText += `📍 Kuryer uchun xarita (Aniq manzil):\nhttps://www.google.com/maps?q=${lat},${lon}`;
+    }
 
     try {
+        const msg = await ctx.telegram.sendMessage(ADMIN_ID, adminText, { parse_mode: 'HTML', disable_web_page_preview: false });
+        
         if (userState.data.location) {
-            const msg = await ctx.telegram.sendMessage(ADMIN_ID, adminText, { parse_mode: 'HTML' });
             await ctx.telegram.sendLocation(ADMIN_ID, userState.data.location.latitude, userState.data.location.longitude, {
                 reply_to_message_id: msg.message_id
             });
-        } else {
-            await ctx.telegram.sendMessage(ADMIN_ID, adminText, { parse_mode: 'HTML' });
         }
         
         userCarts[userId] = []; 
