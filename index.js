@@ -1,6 +1,8 @@
 require('dotenv').config();
 const { Telegraf } = require('telegraf');
 const express = require('express');
+const sqlite3 = require('sqlite3').verbose();
+const moment = require('moment-timezone');
 
 const BOT_TOKEN = process.env.BOT_TOKEN || "8854792431:AAEqBTYvlzWiwebccUHT41qC92yOtDuGkNE"; 
 const ADMIN_ID = process.env.ADMIN_ID || "8584049635"; 
@@ -12,6 +14,27 @@ if (!BOT_TOKEN) {
 
 const bot = new Telegraf(BOT_TOKEN);
 const app = express();
+
+const db = new sqlite3.Database('users.db', (err) => {
+    if (err) console.error('Bazaga ulanishda xatolik:', err.message);
+    else console.log('SQLite bazasiga muvaffaqiyatli ulandi.');
+});
+
+db.run(`CREATE TABLE IF NOT EXISTS users (
+    user_id INTEGER PRIMARY KEY,
+    first_name TEXT,
+    username TEXT,
+    joined_at TEXT
+)`);
+
+function getTotalUsers() {
+    return new Promise((resolve, reject) => {
+        db.get(`SELECT COUNT(*) AS total FROM users`, [], (err, row) => {
+            if (err) reject(err);
+            else resolve(row.total);
+        });
+    });
+}
 
 const userCarts = {};
 const userSteps = {};
@@ -34,28 +57,65 @@ const products = {
     cola: { name: "🥤 Coca-Cola 1.5L", price: 15000, image: "https://images.uzum.uz/cia493tenntd8rfc2s40/original.jpg" }
 };
 
-bot.start((ctx) => {
+bot.start(async (ctx) => {
+    const userId = ctx.from.id;
     const firstName = ctx.from.first_name;
-    userCarts[ctx.from.id] = [];
-    delete userSteps[ctx.from.id];
+    const username = ctx.from.username ? `@${ctx.from.username}` : "Mavjud emas";
     
+    userCarts[userId] = [];
+    delete userSteps[userId];
+    
+    const timeJoined = moment().tz("Asia/Tashkent").format("YYYY-MM-DD HH:mm:ss");
+
+    db.get(`SELECT user_id FROM users WHERE user_id = ?`, [userId], async (err, row) => {
+        if (err) {
+            console.error(err.message);
+            return;
+        }
+
+        if (!row) {
+            db.run(`INSERT INTO users (user_id, first_name, username, joined_at) VALUES (?, ?, ?, ?)`, 
+                [userId, firstName, username, timeJoined], 
+                async (insertErr) => {
+                    if (insertErr) {
+                        console.error(insertErr.message);
+                        return;
+                    }
+
+                    try {
+                        const totalUsers = await getTotalUsers();
+                        let notificationText = `🔔 Yangi foydalanuvchi qo'shildi!\n\n`;
+                        notificationText += `👤 Ismi: ${firstName}\n`;
+                        notificationText += `🌐 Username: ${username}\n`;
+                        notificationText += `🆔 ID: ${userId}\n`;
+                        notificationText += `🕒 Vaqti: ${timeJoined}\n\n`;
+                        notificationText += `📊 Jami foydalanuvchilar: ${totalUsers} ta`;
+
+                        await ctx.telegram.sendMessage(ADMIN_ID, notificationText);
+                    } catch (adminErr) {
+                        console.error("Adminga xabar yuborishda xatolik:", adminErr);
+                    }
+                }
+            );
+        }
+    });
+
     ctx.reply(
         `✨ Assorti Food Khiva botiga xush kelibsiz, ${firstName}!\n\n` +
         `🍕 Xivadagi eng mazzali fast-food va taomlarga buyurtma berishni boshlashingiz mumkin.\n\n` +
         `👇 Quyidagi menyudan kerakli bo'limni tanlang:`,
-        { parse_mode: 'HTML', ...mainKeyboard }
+        mainKeyboard
     );
 });
 
 bot.hears("🍔 Menyu", async (ctx) => {
     delete userSteps[ctx.from.id];
-    await ctx.reply("✨ Assorti Food chiroyli menyusi yuklanmoqda...", { parse_mode: 'HTML' });
+    await ctx.reply("✨ Assorti Food chiroyli menyusi yuklanmoqda...");
 
     for (const key in products) {
         const item = products[key];
         await ctx.replyWithPhoto(item.image, {
             caption: `✨ ${item.name}\n\n💰 Narxi: ${item.price.toLocaleString('uz-UZ')} so'm`,
-            parse_mode: 'HTML',
             reply_markup: {
                 inline_keyboard: [[{ text: "📥 Savatga qo'shish", callback_data: `add_${key}` }]]
             }
@@ -78,7 +138,7 @@ bot.hears("🛒 Savat", (ctx) => {
     const cart = userCarts[userId] || [];
     
     if (cart.length === 0) {
-        return ctx.reply("🛒 Sizning savatingiz bo'sh! \n\nTaom buyurtma qilish uchun avval 🍔 Menyu bo'limiga kiring.", { parse_mode: 'HTML' });
+        return ctx.reply("🛒 Sizning savatingiz bo'sh! \n\nTaom buyurtma qilish uchun avval 🍔 Menyu bo'limiga kiring.");
     }
     
     let text = "🛒 Sizning savatingiz:\n\n";
@@ -90,7 +150,6 @@ bot.hears("🛒 Savat", (ctx) => {
     text += `\n💰 Jami hisob: ${total.toLocaleString('uz-UZ')} so'm\n\nAssorti Food Khiva tizimi orqali xavfsiz buyurtma berishni boshlash uchun pastdagi tugmani bosing:`;
     
     ctx.reply(text, {
-        parse_mode: 'HTML',
         reply_markup: {
             inline_keyboard: [
                 [{ text: "🚖 Buyurtma berishni boshlash", callback_data: "start_order" }],
@@ -110,7 +169,7 @@ bot.action("start_order", (ctx) => {
     const userId = ctx.from.id;
     userSteps[userId] = { step: "WAITING_NAME", data: {} };
     ctx.answerCbQuery();
-    ctx.reply("👤 1-bosqich. Iltimos, ismingizni kiriting:", { parse_mode: 'HTML', reply_markup: { remove_keyboard: true } });
+    ctx.reply("👤 1-bosqich. Iltimos, ismingizni kiriting:", { reply_markup: { remove_keyboard: true } });
 });
 
 bot.on("text", async (ctx) => {
@@ -130,7 +189,6 @@ bot.on("text", async (ctx) => {
         userState.data.name = text;
         userState.step = "WAITING_PHONE";
         return ctx.reply("📞 2-bosqich. Telefon raqamingizni kiriting (Masalan: +998991234567):", {
-            parse_mode: 'HTML',
             reply_markup: {
                 keyboard: [[{ text: "📱 Raqamni yuborish", request_contact: true }]],
                 resize_keyboard: true,
@@ -158,7 +216,6 @@ bot.on("contact", (ctx) => {
 function goToDeliveryStep(ctx, userState) {
     userState.step = "WAITING_DELIVERY";
     ctx.reply("🚖 3-bosqich. Yetkazib berish turini tanlang:", {
-        parse_mode: 'HTML',
         reply_markup: {
             inline_keyboard: [
                 [{ text: "🛵 Yetkazib berish (Dostavka)", callback_data: "del_delivery" }],
@@ -179,7 +236,6 @@ bot.action(["del_delivery", "del_pickup"], (ctx) => {
         userState.data.delivery = "🛵 Dostavka";
         userState.step = "WAITING_LOCATION";
         ctx.reply("📍 4-bosqich. Taom yetkazib berilishi kerak bo'lgan joylashuvni (lokatsiyani) pastdagi maxsus tugma orqali yuboring:", {
-            parse_mode: 'HTML',
             reply_markup: {
                 keyboard: [[{ text: "📍 Joylashuvni yuborish", request_location: true }]],
                 resize_keyboard: true,
@@ -209,7 +265,6 @@ bot.on("location", (ctx) => {
 function goToPaymentStep(ctx, userState, stepNumber) {
     userState.step = "WAITING_PAYMENT";
     ctx.reply(`💳 ${stepNumber}. To'lov turini tanlang:`, {
-        parse_mode: 'HTML',
         reply_markup: {
             inline_keyboard: [
                 [{ text: "🟢 Click", callback_data: "pay_click" }, { text: "🔵 Payme", callback_data: "pay_payme" }],
@@ -256,16 +311,16 @@ bot.action(["pay_click", "pay_payme", "pay_cash"], async (ctx) => {
     });
 
     adminText += `\n💰 Umumiy summa: ${total.toLocaleString('uz-UZ')} so'm\n`;
-    adminText += `━━━━━━━━━━━━━━━━━━━━━━\n`;
+    adminText += `━━━━━━━━━━━━━━━━━━━━━━\n\n`;
 
     if (userState.data.location) {
         const lat = userState.data.location.latitude;
         const lon = userState.data.location.longitude;
-        adminText += `📍 Kuryer uchun xarita (Aniq manzil):\nhttps://www.google.com/maps?q=${lat},${lon}`;
+        adminText += `📍 Kuryer uchun xarita (Aniq manzil):\nhttps://www.google.com/maps?q=loc:${lat},${lon}`;
     }
 
     try {
-        const msg = await ctx.telegram.sendMessage(ADMIN_ID, adminText, { parse_mode: 'HTML', disable_web_page_preview: false });
+        const msg = await ctx.telegram.sendMessage(ADMIN_ID, adminText, { disable_web_page_preview: false });
         
         if (userState.data.location) {
             await ctx.telegram.sendLocation(ADMIN_ID, userState.data.location.latitude, userState.data.location.longitude, {
@@ -276,7 +331,7 @@ bot.action(["pay_click", "pay_payme", "pay_cash"], async (ctx) => {
         userCarts[userId] = []; 
         delete userSteps[userId];
 
-        await ctx.editMessageText(`🎉 Rahmat! Buyurtmangiz muvaffaqiyatli qabul qilindi.\n\nOperatorlarimiz va kuryerlarimiz tez orada siz bilan bog'lanishadi.`, { parse_mode: 'HTML' });
+        await ctx.editMessageText(`🎉 Rahmat! Buyurtmangiz muvaffaqiyatli qabul qilindi.\n\nOperatorlarimiz va kuryerlarimiz tez orada siz bilan bog'lanishadi.`);
         await ctx.reply("Asosiy menyuga qaytdingiz:", mainKeyboard);
     } catch (err) {
         console.error("Adminga yuborishda xatolik:", err);
@@ -286,7 +341,7 @@ bot.action(["pay_click", "pay_payme", "pay_cash"], async (ctx) => {
 
 bot.hears("📍 Bizning Manzil", async (ctx) => {
     delete userSteps[ctx.from.id];
-    await ctx.reply("📍 Assorti Food Khiva", { parse_mode: 'HTML' });
+    await ctx.reply("📍 Assorti Food Khiva");
     await ctx.replyWithLocation(41.397776, 60.3598305);
 });
 
@@ -297,9 +352,15 @@ bot.hears("📞 Admin bilan aloqa", (ctx) => {
         "Savollar va takliflar bo'lsa, bemalol biz bilan bog'laning:\n\n" +
         "👨‍💻 Admin: @lazizshavkatov712\n" +
         "☎️ Telefon: +998972815050\n" +
-        "⏱ Ish vaqti: 24/7",
-        { parse_mode: 'HTML' }
+        "⏱ Ish vaqti: 24/7"
     );
+});
+
+bot.command('stat', async (ctx) => {
+    if (ctx.from.id.toString() === ADMIN_ID.toString()) {
+        const total = await getTotalUsers();
+        ctx.reply(`📊 Botdagi jami faol a'zolar: ${total} ta`);
+    }
 });
 
 const PORT = process.env.PORT || 10000;
