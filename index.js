@@ -1,8 +1,6 @@
 require('dotenv').config();
 const { Telegraf } = require('telegraf');
 const express = require('express');
-const sqlite3 = require('sqlite3').verbose();
-const moment = require('moment-timezone');
 
 const BOT_TOKEN = process.env.BOT_TOKEN || "8854792431:AAEqBTYvlzWiwebccUHT41qC92yOtDuGkNE"; 
 const ADMIN_ID = process.env.ADMIN_ID || "8584049635"; 
@@ -15,27 +13,7 @@ if (!BOT_TOKEN) {
 const bot = new Telegraf(BOT_TOKEN);
 const app = express();
 
-const db = new sqlite3.Database('users.db', (err) => {
-    if (err) console.error('Bazaga ulanishda xatolik:', err.message);
-    else console.log('SQLite bazasiga muvaffaqiyatli ulandi.');
-});
-
-db.run(`CREATE TABLE IF NOT EXISTS users (
-    user_id INTEGER PRIMARY KEY,
-    first_name TEXT,
-    username TEXT,
-    joined_at TEXT
-)`);
-
-function getTotalUsers() {
-    return new Promise((resolve, reject) => {
-        db.get(`SELECT COUNT(*) AS total FROM users`, [], (err, row) => {
-            if (err) reject(err);
-            else resolve(row.total);
-        });
-    });
-}
-
+const registeredUsers = new Set();
 const userCarts = {};
 const userSteps = {};
 
@@ -65,40 +43,26 @@ bot.start(async (ctx) => {
     userCarts[userId] = [];
     delete userSteps[userId];
     
-    const timeJoined = moment().tz("Asia/Tashkent").format("YYYY-MM-DD HH:mm:ss");
+    const timeJoined = new Date().toLocaleString("en-US", { timeZone: "Asia/Tashkent" });
 
-    db.get(`SELECT user_id FROM users WHERE user_id = ?`, [userId], async (err, row) => {
-        if (err) {
-            console.error(err.message);
-            return;
+    if (!registeredUsers.has(userId)) {
+        registeredUsers.add(userId);
+        
+        const totalUsers = registeredUsers.size;
+        let notificationText = `` +
+            `🔔 Yangi foydalanuvchi qo'shildi!\n\n` +
+            `👤 Ismi: ${firstName}\n` +
+            `🌐 Username: ${username}\n` +
+            `🆔 ID: ${userId}\n` +
+            `🕒 Vaqti: ${timeJoined}\n\n` +
+            `📊 Jami foydalanuvchilar: ${totalUsers} ta`;
+
+        try {
+            await ctx.telegram.sendMessage(ADMIN_ID, notificationText);
+        } catch (adminErr) {
+            console.error("Adminga xabar yuborishda xatolik:", adminErr);
         }
-
-        if (!row) {
-            db.run(`INSERT INTO users (user_id, first_name, username, joined_at) VALUES (?, ?, ?, ?)`, 
-                [userId, firstName, username, timeJoined], 
-                async (insertErr) => {
-                    if (insertErr) {
-                        console.error(insertErr.message);
-                        return;
-                    }
-
-                    try {
-                        const totalUsers = await getTotalUsers();
-                        let notificationText = `🔔 Yangi foydalanuvchi qo'shildi!\n\n`;
-                        notificationText += `👤 Ismi: ${firstName}\n`;
-                        notificationText += `🌐 Username: ${username}\n`;
-                        notificationText += `🆔 ID: ${userId}\n`;
-                        notificationText += `🕒 Vaqti: ${timeJoined}\n\n`;
-                        notificationText += `📊 Jami foydalanuvchilar: ${totalUsers} ta`;
-
-                        await ctx.telegram.sendMessage(ADMIN_ID, notificationText);
-                    } catch (adminErr) {
-                        console.error("Adminga xabar yuborishda xatolik:", adminErr);
-                    }
-                }
-            );
-        }
-    });
+    }
 
     ctx.reply(
         `✨ Assorti Food Khiva botiga xush kelibsiz, ${firstName}!\n\n` +
@@ -316,7 +280,7 @@ bot.action(["pay_click", "pay_payme", "pay_cash"], async (ctx) => {
     if (userState.data.location) {
         const lat = userState.data.location.latitude;
         const lon = userState.data.location.longitude;
-        adminText += `📍 Kuryer uchun xarita (Aniq manzil):\nhttps://www.google.com/maps?q=loc:${lat},${lon}`;
+        adminText += `📍 Kuryer uchun xarita (Aniq manzil):\nhttps://www.google.com/maps/search/?api=1&query=${lat},${lon}`;
     }
 
     try {
@@ -358,7 +322,7 @@ bot.hears("📞 Admin bilan aloqa", (ctx) => {
 
 bot.command('stat', async (ctx) => {
     if (ctx.from.id.toString() === ADMIN_ID.toString()) {
-        const total = await getTotalUsers();
+        const total = registeredUsers.size;
         ctx.reply(`📊 Botdagi jami faol a'zolar: ${total} ta`);
     }
 });
