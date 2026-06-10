@@ -14,7 +14,7 @@ if (!BOT_TOKEN) {
 }
 
 const bot = new Telegraf(BOT_TOKEN);
-const app = express();
+const app = report_express = express();
 
 const registeredUsers = new Set();
 const userCarts = {};
@@ -166,6 +166,12 @@ bot.on("text", async (ctx) => {
         userState.data.phone = typedPhone;
         return goToDeliveryStep(ctx, userState);
     }
+
+    if (userState.step === "WAITING_LOCATION") {
+        userState.data.locationType = "text";
+        userState.data.locationData = text;
+        goToPaymentStep(ctx, userState, "5-bosqich");
+    }
 });
 
 bot.on("contact", (ctx) => {
@@ -200,15 +206,15 @@ bot.action(["del_delivery", "del_pickup"], (ctx) => {
     if (ctx.callbackQuery.data === "del_delivery") {
         userState.data.delivery = "🛵 Dostavka";
         userState.step = "WAITING_LOCATION";
-        ctx.reply("📍 4-bosqich. Lokatsiyangizni (joylashuvni) pastdagi maxsus tugma orqali yuboring:", {
+        ctx.reply("📍 4-bosqich. Yetkazib berish manzilini pastdagi tugma orqali GPS lokatsiya qilib yuboring yoki shu yerga matn shaklida qo'lda yozib qoldiring:", {
             reply_markup: {
-                keyboard: [[{ text: "📍 Joylashuvni yuborish", request_location: true }]],
+                keyboard: [[{ text: "📍 Lokatsiyani yuborish (GPS)", request_location: true }]],
                 resize_keyboard: true, one_time_keyboard: true
             }
         });
     } else {
         userState.data.delivery = "🏃‍♂️ O'zim olib ketaman";
-        userState.data.location = null; 
+        userState.data.locationType = "none";
         goToPaymentStep(ctx, userState, "4-bosqich");
     }
 });
@@ -217,7 +223,8 @@ bot.on("location", (ctx) => {
     const userId = ctx.from.id;
     const userState = userSteps[userId];
     if (userState && userState.step === "WAITING_LOCATION") {
-        userState.data.location = { latitude: ctx.message.location.latitude, longitude: ctx.message.location.longitude };
+        userState.data.locationType = "gps";
+        userState.data.locationData = { latitude: ctx.message.location.latitude, longitude: ctx.message.location.longitude };
         goToPaymentStep(ctx, userState, "5-bosqich"); 
     }
 });
@@ -227,8 +234,8 @@ function goToPaymentStep(ctx, userState, stepNumber) {
     ctx.reply(`💳 ${stepNumber}. To'lov turini tanlang:`, {
         reply_markup: {
             inline_keyboard: [
-                [{ text: "🟢 Click (Karta orqali)", callback_data: "pay_click" }, { text: "🔵 Payme (Karta orqali)", callback_data: "pay_payme" }],
-                [{ text: "💵 Naqd pul orqali", callback_data: "pay_cash" }]
+                [{ text: "🟢 Click (Karta)", callback_data: "pay_click" }, { text: "🔵 Payme (Karta)", callback_data: "pay_payme" }],
+                [{ text: "💵 Naqd pul", callback_data: "pay_cash" }]
             ]
         }
     });
@@ -245,11 +252,14 @@ bot.action(["pay_click", "pay_payme", "pay_cash"], async (ctx) => {
     let total = 0;
     const pricesList = cart.map(item => {
         total += item.price;
-        return { label: item.name, amount: item.price * 100 }; 
+        return { label: item.name, amount: Math.round(item.price * 100) }; 
     });
 
     if (ctx.callbackQuery.data === "pay_cash") {
         userState.data.payment = "💵 Naqd";
+        try {
+            await ctx.deleteMessage(ctx.callbackQuery.message.message_id);
+        } catch (e) { console.error(e); }
         return sendOrderToAdmin(ctx, userState, cart, total);
     }
 
@@ -257,6 +267,8 @@ bot.action(["pay_click", "pay_payme", "pay_cash"], async (ctx) => {
     userState.data.payment = ctx.callbackQuery.data === "pay_click" ? "🟢 Click" : "🔵 Payme";
 
     try {
+        await ctx.deleteMessage(ctx.callbackQuery.message.message_id);
+        
         await ctx.reply("💳 To'lov hisobi tayyorlanmoqda...");
         await ctx.replyWithInvoice({
             title: "Assorti Food Buyurtma",
@@ -269,7 +281,7 @@ bot.action(["pay_click", "pay_payme", "pay_cash"], async (ctx) => {
         });
     } catch (err) {
         console.error("Invoice yuborishda xatolik:", err);
-        ctx.reply("⚠️ To'lov tizimida xatolik yuz berdi. Iltimos Naqd pulni tanlang.");
+        ctx.reply("⚠️ To'lov tizimida texnik xatolik. Iltimos, Naqd pul to'lov turini tanlang.");
     }
 });
 
@@ -288,7 +300,7 @@ bot.on("successful_payment", async (ctx) => {
         
         try {
             await ctx.deleteMessage(ctx.message.message_id);
-        } catch (e) { console.error("Xabarni o'chirishda xatolik:", e); }
+        } catch (e) { console.error(e); }
 
         await sendOrderToAdmin(ctx, userState, cart, total);
     }
@@ -304,16 +316,19 @@ async function sendOrderToAdmin(ctx, userState, cart, total) {
     });
     adminText += `\n💰 Umumiy summa: ${total.toLocaleString('uz-UZ')} so'm\n━━━━━━━━━━━━━━━━━━━━━━\n`;
 
-    if (userState.data.location) {
-        const lat = userState.data.location.latitude;
-        const lon = userState.data.location.longitude;
-        adminText += `\n📍 Kuryer uchun xarita:\nhttps://www.google.com/maps?q=${lat},${lon}`;
+    if (userState.data.locationType === "text") {
+        adminText += `\n📍 Kiritilgan Manzil (Qo'lda yozilgan):\n📝 ${userState.data.locationData}`;
+    } else if (userState.data.locationType === "gps") {
+        const lat = userState.data.locationData.latitude;
+        const lon = userState.data.locationData.longitude;
+        adminText += `\n📍 Kuryer uchun Google Xarita:\nhttps://maps.google.com/?q=${lat},${lon}`;
     }
 
     try {
         const msg = await ctx.telegram.sendMessage(ADMIN_ID, adminText);
-        if (userState.data.location) {
-            await ctx.telegram.sendLocation(ADMIN_ID, userState.data.location.latitude, userState.data.location.longitude, { reply_to_message_id: msg.message_id });
+        
+        if (userState.data.locationType === "gps") {
+            await ctx.telegram.sendLocation(ADMIN_ID, userState.data.locationData.latitude, userState.data.locationData.longitude, { reply_to_message_id: msg.message_id });
         }
         
         userCarts[userId] = []; 
