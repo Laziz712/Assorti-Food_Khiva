@@ -76,15 +76,17 @@ bot.hears("🍔 Menyu", async (ctx) => {
     delete userSteps[ctx.from.id];
     await ctx.reply("✨ Assorti Food chiroyli menyusi yuklanmoqda...");
 
-    for (const key in products) {
+    const promises = Object.keys(products).map(key => {
         const item = products[key];
-        await ctx.replyWithPhoto(item.image, {
+        return ctx.replyWithPhoto(item.image, {
             caption: `✨ ${item.name}\n\n💰 Narxi: ${item.price.toLocaleString('uz-UZ')} so'm`,
             reply_markup: {
                 inline_keyboard: [[{ text: "📥 Savatga qo'shish", callback_data: `add_${key}` }]]
             }
-        });
-    }
+        }).catch(err => console.error("Menyu yuborishda xatolik:", err));
+    });
+
+    await Promise.all(promises);
 });
 
 Object.keys(products).forEach(key => {
@@ -162,7 +164,11 @@ bot.on("text", async (ctx) => {
     }
 
     if (userState.step === "WAITING_PHONE") {
-        userState.data.phone = text;
+        let typedPhone = text.trim();
+        if (!typedPhone.startsWith('+')) {
+            typedPhone = '+' + typedPhone;
+        }
+        userState.data.phone = typedPhone;
         return goToDeliveryStep(ctx, userState);
     }
 });
@@ -172,7 +178,11 @@ bot.on("contact", (ctx) => {
     const userState = userSteps[userId];
 
     if (userState && userState.step === "WAITING_PHONE") {
-        userState.data.phone = ctx.message.contact.phone_number;
+        let phone = ctx.message.contact.phone_number;
+        if (!phone.startsWith('+')) {
+            phone = '+' + phone;
+        }
+        userState.data.phone = phone;
         goToDeliveryStep(ctx, userState);
     }
 });
@@ -280,7 +290,7 @@ bot.action(["pay_click", "pay_payme", "pay_cash"], async (ctx) => {
     if (userState.data.location) {
         const lat = userState.data.location.latitude;
         const lon = userState.data.location.longitude;
-        adminText += `📍 Kuryer uchun xarita (Aniq manzil):\nhttps://www.google.com/maps/search/?api=1&query=${lat},${lon}`;
+        adminText += `📍 Kuryer uchun xarita (Aniq manzil):\nhttps://maps.google.com/?q=${lat},${lon}`;
     }
 
     try {
