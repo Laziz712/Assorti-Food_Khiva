@@ -95,15 +95,6 @@ bot.hears("🍔 Menyu", async (ctx) => {
     await Promise.all(promises);
 });
 
-Object.keys(products).forEach(key => {
-    bot.action(`add_${key}`, (ctx) => {
-        const userId = ctx.from.id;
-        if (!userCarts[userId]) userCarts[userId] = [];
-        userCarts[userId].push(products[key]);
-        ctx.answerCbQuery(`${products[key].name} savatga qo'shildi! ✅`);
-    });
-});
-
 bot.hears("🛒 Savat", (ctx) => {
     delete userSteps[ctx.from.id];
     const userId = ctx.from.id;
@@ -131,6 +122,32 @@ bot.hears("🛒 Savat", (ctx) => {
     });
 });
 
+bot.hears("📍 Bizning Manzil", async (ctx) => {
+    delete userSteps[ctx.from.id];
+    await ctx.reply("📍 Assorti Food Khiva");
+    await ctx.replyWithLocation(41.397776, 60.3598305);
+});
+
+bot.hears("📞 Admin bilan aloqa", (ctx) => {
+    delete userSteps[ctx.from.id];
+    ctx.reply(
+        "📞 Assorti Food Khiva Adminstratsiyasi \n\n" +
+        "Savollar va takliflar bo'lsa, bemalol biz bilan bog'laning:\n\n" +
+        "👨‍💻 Admin: @lazizshavkatov712\n" +
+        "☎️ Telefon: +998972815050\n" +
+        "⏱ Ish vaqti: 24/7"
+    );
+});
+
+Object.keys(products).forEach(key => {
+    bot.action(`add_${key}`, (ctx) => {
+        const userId = ctx.from.id;
+        if (!userCarts[userId]) userCarts[userId] = [];
+        userCarts[userId].push(products[key]);
+        ctx.answerCbQuery(`${products[key].name} savatga qo'shildi! ✅`);
+    });
+});
+
 bot.action("clear_cart", (ctx) => {
     userCarts[ctx.from.id] = [];
     ctx.answerCbQuery("Savat tozalandi! 🗑");
@@ -147,15 +164,15 @@ bot.action("start_order", (ctx) => {
 bot.on("text", async (ctx) => {
     const userId = ctx.from.id;
     const userState = userSteps[userId];
+    const text = ctx.message.text;
+
+    if (text === "🍔 Menyu" || text === "🛒 Savat" || text === "📍 Bizning Manzil" || text === "📞 Admin bilan aloqa") {
+        return; 
+    }
 
     if (!userState) {
-        if (ctx.message.text === "🍔 Menyu" || ctx.message.text === "🛒 Savat" || ctx.message.text === "📍 Bizning Manzil" || ctx.message.text === "📞 Admin bilan aloqa") {
-            return;
-        }
         return ctx.reply("Iltimos, quyidagi menyudan foydalaning:", mainKeyboard);
     }
-    
-    const text = ctx.message.text;
 
     if (userState.step === "WAITING_NAME") {
         userState.data.name = text;
@@ -296,7 +313,7 @@ bot.action(["pay_click", "pay_payme", "pay_cash"], async (ctx) => {
     if (userState.data.location) {
         const lat = userState.data.location.latitude;
         const lon = userState.data.location.longitude;
-        adminText += `📍 Kuryer uchun xarita (Aniq manzil):\nhttp://maps.google.com/maps?q=${lat},${lon}`;
+        adminText += `📍 Kuryer uchun xarita (Aniq manzil):\nhttps://maps.google.com/?q=${lat},${lon}`;
     }
 
     try {
@@ -317,23 +334,6 @@ bot.action(["pay_click", "pay_payme", "pay_cash"], async (ctx) => {
         console.error("Adminga yuborishda xatolik:", err);
         ctx.reply("⚠️ Xatolik yuz berdi. Iltimos, admin avval botga kirib /start bosganini tekshiring!", mainKeyboard);
     }
-});
-
-bot.hears("📍 Bizning Manzil", async (ctx) => {
-    delete userSteps[ctx.from.id];
-    await ctx.reply("📍 Assorti Food Khiva");
-    await ctx.replyWithLocation(41.397776, 60.3598305);
-});
-
-bot.hears("📞 Admin bilan aloqa", (ctx) => {
-    delete userSteps[ctx.from.id];
-    ctx.reply(
-        "📞 Assorti Food Khiva Adminstratsiyasi \n\n" +
-        "Savollar va takliflar bo'lsa, bemalol biz bilan bog'laning:\n\n" +
-        "👨‍💻 Admin: @lazizshavkatov712\n" +
-        "☎️ Telefon: +998972815050\n" +
-        "⏱ Ish vaqti: 24/7"
-    );
 });
 
 bot.command('stat', async (ctx) => {
