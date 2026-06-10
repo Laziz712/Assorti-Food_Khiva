@@ -5,7 +5,7 @@ const express = require('express');
 const BOT_TOKEN = process.env.BOT_TOKEN || "8854792431:AAEqBTYvlzWiwebccUHT41qC92yOtDuGkNE"; 
 const ADMIN_ID = process.env.ADMIN_ID || "8584049635"; 
 const CLICK_TOKEN = process.env.CLICK_TOKEN || "398062629:TEST:999999999_F91D8F69C042267444B74CC0B3C747757EB0E065";
-const PAYME_TOKEN = process.env.PAYME_TOKEN || "371317599:TEST:1781100758907";
+const PAYME_TOKEN = process.env.PAYME_TOKEN || ""; 
 
 if (!BOT_TOKEN) {
     console.error("Xatolik: BOT_TOKEN topilmadi!");
@@ -83,12 +83,17 @@ bot.hears("🛒 Savat", (ctx) => {
 
 bot.hears("📍 Bizning Manzil", async (ctx) => {
     delete userSteps[ctx.from.id]; 
+    
+    await ctx.reply(`📍 Assorti Food Khiva lokatsiyasi:\n\n🗺 Quyidagi xarita orqali manzilimizni topishingiz mumkin:`);
     await ctx.replyWithLocation(41.397776, 60.3598305);
 });
 
 bot.hears("📞 Admin bilan aloqa", (ctx) => {
     delete userSteps[ctx.from.id]; 
-    ctx.reply("👨‍💻 Admin: @lazizshavkatov712\n☎️ Telefon: +998972815050");
+    ctx.reply(`📞 Admin bilan aloqa
+
+    👨‍💻 Admin: @lazizshavkatov712
+    ☎️ Telefon: +998972815050`);
 });
 
 Object.keys(products).forEach(key => {
@@ -124,7 +129,7 @@ bot.on("text", async (ctx) => {
     if (userState.step === "WAITING_NAME") {
         userState.data.name = text;
         userState.step = "WAITING_PHONE";
-        return ctx.reply("📞 2-bosqich. Telefon raqamingizni kiriting:", {
+        return ctx.reply("📞 2-bosqich. Telefon raqamingizni kiriting yoki pastdagi tugmani bosing:", {
             reply_markup: {
                 keyboard: [[{ text: "📱 Raqamni yuborish", request_contact: true }]],
                 resize_keyboard: true, one_time_keyboard: true
@@ -140,7 +145,7 @@ bot.on("text", async (ctx) => {
     if (userState.step === "WAITING_LOCATION") {
         userState.data.locationType = "text";
         userState.data.locationData = text; 
-        goToPaymentStep(ctx, userState, "5-bosqich");
+        return goToPaymentStep(ctx, userState, "5-bosqich"); 
     }
 });
 
@@ -174,7 +179,7 @@ bot.action(["del_delivery", "del_pickup"], (ctx) => {
     if (ctx.callbackQuery.data === "del_delivery") {
         userState.data.delivery = "🛵 Dostavka";
         userState.step = "WAITING_LOCATION";
-        ctx.reply("📍 4-bosqich. Yetkazib berish manzilini pastdagi tugma orqali GPS lokatsiya qilib yuboring yoki shu yerga matn shaklida qo'lda yozib qoldiring (Masalan: Navoiy ko'chasi, 15-uy):", {
+        ctx.reply("📍 4-bosqich. Yetkazib berish manzilini pastdagi tugma orqali GPS lokatsiya qilib yuboring yoki shu yerga matn shaklida ko'cha va uy raqamini yozing:", {
             reply_markup: {
                 keyboard: [[{ text: "📍 Lokatsiyani yuborish (GPS)", request_location: true }]],
                 resize_keyboard: true, one_time_keyboard: true
@@ -235,7 +240,7 @@ bot.action(["pay_click", "pay_payme", "pay_cash"], async (ctx) => {
     userState.data.payment = ctx.callbackQuery.data === "pay_click" ? "🟢 Click" : "🔵 Payme";
 
     if (!providerToken || providerToken.includes("PASTGA")) {
-        return ctx.reply("⚠️ Tanlangan to'lov tizimi hozircha sozlanmagan. Iltimos, Naqd pul to'lovini tanlang.");
+        return ctx.reply("⚠️ Bu to'lov tizimi ulanmagan. Iltimos Naqd pulni tanlang.");
     }
 
     try {
@@ -251,7 +256,7 @@ bot.action(["pay_click", "pay_payme", "pay_cash"], async (ctx) => {
         });
     } catch (err) {
         console.error("Invoice xatosi:", err);
-        ctx.reply("⚠️ To'lov tizimida cheklov bor. Iltimos, Naqd pul orqali to'lashni tanlang.");
+        ctx.reply("⚠️ To'lov tizimida cheklov bor. Iltimos, Naqd pulni tanlang.");
     }
 });
 
@@ -289,7 +294,7 @@ async function sendOrderToAdmin(ctx, userState, cart, total) {
     } else if (userState.data.locationType === "gps") {
         const lat = userState.data.locationData.latitude;
         const lon = userState.data.locationData.longitude;
-        adminText += `\n📍 Kuryer uchun Google Xarita:\nhttps://maps.google.com/?q=${lat},${lon}`;
+        adminText += `\n📍 Kuryer uchun Google Xarita:\nhttps://www.google.com/maps?q=${lat},${lon}`;
     }
 
     try {
@@ -302,7 +307,7 @@ async function sendOrderToAdmin(ctx, userState, cart, total) {
         userCarts[userId] = []; 
         delete userSteps[userId];
         
-        await ctx.reply(`🎉 Rahmat! Buyurtmangiz muvaffaqiyatli qabul qilindi.\n\n🔙 Siz asosiy menyuga qaytdingiz.`, mainKeyboard);
+        await ctx.reply(`🎉 Rahmat! Buyurtmangiz muvaffaqiyatli qabul qilindi.\n\nOperatorlarimiz va kuryerlarimiz tez orada siz bilan bog'lanishadi.\n\n🔙 Siz asosiy menyuga qaytdingiz.`, mainKeyboard);
     } catch (err) {
         console.error(err);
     }
@@ -310,5 +315,5 @@ async function sendOrderToAdmin(ctx, userState, cart, total) {
 
 const PORT = process.env.PORT || 10000;
 app.use(bot.webhookCallback('/bot'));
-app.get('/', (req, res) => res.send('Assorti Food bot ishlayapti!'));
+app.get('/', (req, res) => res.send('Bot ishlayapti!'));
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
