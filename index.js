@@ -88,7 +88,7 @@ bot.hears("📍 Bizning Manzil", async (ctx) => {
 
 bot.hears("📞 Admin bilan aloqa", (ctx) => {
     delete userSteps[ctx.from.id]; 
-    ctx.reply(`📞 Admin bilan aloqa\n\n \n\n 👨‍💻 Admin: @lazizshavkatov712\n ☎️ Telefon: +998972815050`);
+    ctx.reply(`📞 Admin bilan aloqa\n\n 👨‍💻 Admin: @lazizshavkatov712\n ☎️ Telefon: +998972815050`);
 });
 
 Object.keys(products).forEach(key => {
