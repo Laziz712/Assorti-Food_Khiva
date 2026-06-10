@@ -14,7 +14,7 @@ if (!BOT_TOKEN) {
 }
 
 const bot = new Telegraf(BOT_TOKEN);
-const app = report_express = express();
+const app = express();
 
 const registeredUsers = new Set();
 const userCarts = {};
@@ -169,7 +169,7 @@ bot.on("text", async (ctx) => {
 
     if (userState.step === "WAITING_LOCATION") {
         userState.data.locationType = "text";
-        userState.data.locationData = text;
+        userState.data.locationData = text; 
         goToPaymentStep(ctx, userState, "5-bosqich");
     }
 });
@@ -269,7 +269,6 @@ bot.action(["pay_click", "pay_payme", "pay_cash"], async (ctx) => {
     try {
         await ctx.deleteMessage(ctx.callbackQuery.message.message_id);
         
-        await ctx.reply("💳 To'lov hisobi tayyorlanmoqda...");
         await ctx.replyWithInvoice({
             title: "Assorti Food Buyurtma",
             description: `${userState.data.name} uchun taomlar buyurtmasi`,
@@ -280,8 +279,8 @@ bot.action(["pay_click", "pay_payme", "pay_cash"], async (ctx) => {
             start_parameter: "assorti-food-order"
         });
     } catch (err) {
-        console.error("Invoice yuborishda xatolik:", err);
-        ctx.reply("⚠️ To'lov tizimida texnik xatolik. Iltimos, Naqd pul to'lov turini tanlang.");
+        console.error("Invoice xatosi:", err);
+        ctx.reply("⚠️ To'lov tizimida texnik cheklov bor. Iltimos, Naqd pul to'lov turini tanlang.");
     }
 });
 
@@ -317,7 +316,7 @@ async function sendOrderToAdmin(ctx, userState, cart, total) {
     adminText += `\n💰 Umumiy summa: ${total.toLocaleString('uz-UZ')} so'm\n━━━━━━━━━━━━━━━━━━━━━━\n`;
 
     if (userState.data.locationType === "text") {
-        adminText += `\n📍 Kiritilgan Manzil (Qo'lda yozilgan):\n📝 ${userState.data.locationData}`;
+        adminText += `\n📍 Kiritilgan Manzil:\n📝 ${userState.data.locationData}`;
     } else if (userState.data.locationType === "gps") {
         const lat = userState.data.locationData.latitude;
         const lon = userState.data.locationData.longitude;
