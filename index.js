@@ -6,7 +6,7 @@ const BOT_TOKEN = process.env.BOT_TOKEN || "8854792431:AAEqBTYvlzWiwebccUHT41qC9
 const ADMIN_ID = process.env.ADMIN_ID || "8584049635"; 
 
 const CLICK_TOKEN = process.env.CLICK_TOKEN || "398062629:TEST:999999999_F91D8F69C042267444B74CC0B3C747757EB0E065";
-const PAYME_TOKEN = process.env.PAYME_TOKEN || "PASTGA_PAYME_TOKENINI371317599:TEST:1781087527033";
+const PAYME_TOKEN = process.env.PAYME_TOKEN || "371317599:TEST:1781087527033";
 
 if (!BOT_TOKEN) {
     console.error("Xatolik: BOT_TOKEN topilmadi!");
@@ -104,13 +104,13 @@ bot.hears("🛒 Savat", (ctx) => {
 });
 
 bot.hears("📍 Bizning Manzil", async (ctx) => {
-    delete userSteps[ctx.from.id];
+    delete userSteps[ctx.from.id]; 
     await ctx.reply("📍 Assorti Food Khiva");
     await ctx.replyWithLocation(41.397776, 60.3598305);
 });
 
 bot.hears("📞 Admin bilan aloqa", (ctx) => {
-    delete userSteps[ctx.from.id];
+    delete userSteps[ctx.from.id]; 
     ctx.reply(
         "📞 Assorti Food Khiva Adminstratsiyasi \n\n" +
         "👨‍💻 Admin: @lazizshavkatov712\n" +
@@ -273,7 +273,6 @@ bot.action(["pay_click", "pay_payme", "pay_cash"], async (ctx) => {
     }
 });
 
-// 4. TO'LOV EVENTLARI
 bot.on("pre_checkout_query", (ctx) => {
     ctx.answerPreCheckoutQuery(true);
 });
@@ -286,11 +285,15 @@ bot.on("successful_payment", async (ctx) => {
     if (userState) {
         userState.data.payment += " ✅ (To'landi)";
         let total = ctx.message.successful_payment.total_amount / 100;
+        
+        try {
+            await ctx.deleteMessage(ctx.message.message_id);
+        } catch (e) { console.error("Xabarni o'chirishda xatolik:", e); }
+
         await sendOrderToAdmin(ctx, userState, cart, total);
     }
 });
 
-// Adminga buyurtmani chiroyli qilib yuborish funksiyasi
 async function sendOrderToAdmin(ctx, userState, cart, total) {
     const userId = ctx.from.id;
     let adminText = `🚨 ASSORTI FOOD: YANGI BUYURTMA! 🚨\n━━━━━━━━━━━━━━━━━━━━━━\n\n`;
@@ -302,7 +305,9 @@ async function sendOrderToAdmin(ctx, userState, cart, total) {
     adminText += `\n💰 Umumiy summa: ${total.toLocaleString('uz-UZ')} so'm\n━━━━━━━━━━━━━━━━━━━━━━\n`;
 
     if (userState.data.location) {
-        adminText += `\n📍 Kuryer uchun xarita:\nhttp://maps.google.com/maps?q=${userState.data.location.latitude},${userState.data.location.longitude}`;
+        const lat = userState.data.location.latitude;
+        const lon = userState.data.location.longitude;
+        adminText += `\n📍 Kuryer uchun xarita:\nhttps://www.google.com/maps?q=${lat},${lon}`;
     }
 
     try {
@@ -310,9 +315,11 @@ async function sendOrderToAdmin(ctx, userState, cart, total) {
         if (userState.data.location) {
             await ctx.telegram.sendLocation(ADMIN_ID, userState.data.location.latitude, userState.data.location.longitude, { reply_to_message_id: msg.message_id });
         }
+        
         userCarts[userId] = []; 
         delete userSteps[userId];
-        await ctx.reply(`🎉 Rahmat! Buyurtmangiz muvaffaqiyatli qabul qilindi.\n\nOperatorlarimiz va kuryerlarimiz tez orada siz bilan bog'lanishadi.`, mainKeyboard);
+        
+        await ctx.reply(`🎉 Rahmat! Buyurtmangiz muvaffaqiyatli qabul qilindi.\n\n🔙 Siz asosiy menyuga qaytdingiz.`, mainKeyboard);
     } catch (err) {
         console.error(err);
     }
