@@ -43,7 +43,13 @@ bot.start(async (ctx) => {
     userCarts[userId] = [];
     delete userSteps[userId];
     
-    const timeJoined = new Date().toLocaleString("en-US", { timeZone: "Asia/Tashkent" });
+    const now = new Date();
+    const timeJoined = now.toLocaleTimeString("uz-UZ", { 
+        timeZone: "Asia/Tashkent", 
+        hour: '2-digit', 
+        minute: '2-digit', 
+        hour12: false 
+    });
 
     if (!registeredUsers.has(userId)) {
         registeredUsers.add(userId);
@@ -290,7 +296,7 @@ bot.action(["pay_click", "pay_payme", "pay_cash"], async (ctx) => {
     if (userState.data.location) {
         const lat = userState.data.location.latitude;
         const lon = userState.data.location.longitude;
-        adminText += `📍 Kuryer uchun xarita (Aniq manzil):\nhttps://maps.google.com/?q=${lat},${lon}`;
+        adminText += `📍 Kuryer uchun xarita (Aniq manzil):\nhttp://maps.google.com/maps?q=${lat},${lon}`;
     }
 
     try {
