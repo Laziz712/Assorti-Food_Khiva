@@ -4,9 +4,8 @@ const express = require('express');
 
 const BOT_TOKEN = process.env.BOT_TOKEN || "8854792431:AAEqBTYvlzWiwebccUHT41qC92yOtDuGkNE"; 
 const ADMIN_ID = process.env.ADMIN_ID || "8584049635"; 
-
 const CLICK_TOKEN = process.env.CLICK_TOKEN || "398062629:TEST:999999999_F91D8F69C042267444B74CC0B3C747757EB0E065";
-const PAYME_TOKEN = process.env.PAYME_TOKEN || "371317599:TEST:1781087527033";
+const PAYME_TOKEN = process.env.PAYME_TOKEN || "371317599:TEST:1781100758907";
 
 if (!BOT_TOKEN) {
     console.error("Xatolik: BOT_TOKEN topilmadi!");
@@ -40,30 +39,9 @@ const products = {
 
 bot.start(async (ctx) => {
     const userId = ctx.from.id;
-    const firstName = ctx.from.first_name;
-    const username = ctx.from.username ? `@${ctx.from.username}` : "Mavjud emas";
-    
     userCarts[userId] = [];
     delete userSteps[userId];
-    
-    const now = new Date();
-    const timeJoined = now.toLocaleTimeString("uz-UZ", { 
-        timeZone: "Asia/Tashkent", 
-        hour: '2-digit', 
-        minute: '2-digit', 
-        hour12: false 
-    });
-
-    if (!registeredUsers.has(userId)) {
-        registeredUsers.add(userId);
-        const totalUsers = registeredUsers.size;
-        let notificationText = `🔔 Yangi foydalanuvchi qo'shildi!\n\n👤 Ismi: ${firstName}\n🌐 Username: ${username}\n🆔 ID: ${userId}\n🕒 Vaqti: ${timeJoined}\n\n📊 Jami foydalanuvchilar: ${totalUsers} ta`;
-        try {
-            await ctx.telegram.sendMessage(ADMIN_ID, notificationText);
-        } catch (err) { console.error(err); }
-    }
-
-    ctx.reply(`✨ Assorti Food Khiva botiga xush kelibsiz, ${firstName}!\n\n👇 Quyidagi menyudan kerakli bo'limni tanlang:`, mainKeyboard);
+    ctx.reply(`✨ Assorti Food Khiva botiga xush kelibsiz!\n\n👇 Quyidagi menyudan kerakli bo'limni tanlang:`, mainKeyboard);
 });
 
 bot.hears("🍔 Menyu", async (ctx) => {
@@ -83,7 +61,7 @@ bot.hears("🛒 Savat", (ctx) => {
     delete userSteps[ctx.from.id];
     const userId = ctx.from.id;
     const cart = userCarts[userId] || [];
-    if (cart.length === 0) return ctx.reply("🛒 Sizning savatingiz bo'sh! \n\nTaom buyurtma qilish uchun avval 🍔 Menyu bo'limiga kiring.");
+    if (cart.length === 0) return ctx.reply("🛒 Sizning savatingiz bo'sh!");
     
     let text = "🛒 Sizning savatingiz:\n\n";
     let total = 0;
@@ -91,7 +69,7 @@ bot.hears("🛒 Savat", (ctx) => {
         text += `${index + 1}. ${item.name} — ${item.price.toLocaleString('uz-UZ')} so'm\n`;
         total += item.price;
     });
-    text += `\n💰 Jami hisob: ${total.toLocaleString('uz-UZ')} so'm\n\nAssorti Food Khiva tizimi orqali xavfsiz buyurtma berishni boshlash uchun pastdagi tugmani bosing:`;
+    text += `\n💰 Jami hisob: ${total.toLocaleString('uz-UZ')} so'm`;
     
     ctx.reply(text, {
         reply_markup: {
@@ -105,18 +83,12 @@ bot.hears("🛒 Savat", (ctx) => {
 
 bot.hears("📍 Bizning Manzil", async (ctx) => {
     delete userSteps[ctx.from.id]; 
-    await ctx.reply("📍 Assorti Food Khiva");
     await ctx.replyWithLocation(41.397776, 60.3598305);
 });
 
 bot.hears("📞 Admin bilan aloqa", (ctx) => {
     delete userSteps[ctx.from.id]; 
-    ctx.reply(
-        "📞 Assorti Food Khiva Adminstratsiyasi \n\n" +
-        "👨‍💻 Admin: @lazizshavkatov712\n" +
-        "☎️ Telefon: +998972815050\n" +
-        "⏱ Ish vaqti: 24/7"
-    );
+    ctx.reply("👨‍💻 Admin: @lazizshavkatov712\n☎️ Telefon: +998972815050");
 });
 
 Object.keys(products).forEach(key => {
@@ -152,7 +124,7 @@ bot.on("text", async (ctx) => {
     if (userState.step === "WAITING_NAME") {
         userState.data.name = text;
         userState.step = "WAITING_PHONE";
-        return ctx.reply("📞 2-bosqich. Telefon raqamingizni kiriting (Masalan: +998991234567):", {
+        return ctx.reply("📞 2-bosqich. Telefon raqamingizni kiriting:", {
             reply_markup: {
                 keyboard: [[{ text: "📱 Raqamni yuborish", request_contact: true }]],
                 resize_keyboard: true, one_time_keyboard: true
@@ -161,9 +133,7 @@ bot.on("text", async (ctx) => {
     }
 
     if (userState.step === "WAITING_PHONE") {
-        let typedPhone = text.trim();
-        if (!typedPhone.startsWith('+')) typedPhone = '+' + typedPhone;
-        userState.data.phone = typedPhone;
+        userState.data.phone = text.trim();
         return goToDeliveryStep(ctx, userState);
     }
 
@@ -178,9 +148,7 @@ bot.on("contact", (ctx) => {
     const userId = ctx.from.id;
     const userState = userSteps[userId];
     if (userState && userState.step === "WAITING_PHONE") {
-        let phone = ctx.message.contact.phone_number;
-        if (!phone.startsWith('+')) phone = '+' + phone;
-        userState.data.phone = phone;
+        userState.data.phone = ctx.message.contact.phone_number;
         goToDeliveryStep(ctx, userState);
     }
 });
@@ -206,7 +174,7 @@ bot.action(["del_delivery", "del_pickup"], (ctx) => {
     if (ctx.callbackQuery.data === "del_delivery") {
         userState.data.delivery = "🛵 Dostavka";
         userState.step = "WAITING_LOCATION";
-        ctx.reply("📍 4-bosqich. Yetkazib berish manzilini pastdagi tugma orqali GPS lokatsiya qilib yuboring yoki shu yerga matn shaklida qo'lda yozib qoldiring:", {
+        ctx.reply("📍 4-bosqich. Yetkazib berish manzilini pastdagi tugma orqali GPS lokatsiya qilib yuboring yoki shu yerga matn shaklida qo'lda yozib qoldiring (Masalan: Navoiy ko'chasi, 15-uy):", {
             reply_markup: {
                 keyboard: [[{ text: "📍 Lokatsiyani yuborish (GPS)", request_location: true }]],
                 resize_keyboard: true, one_time_keyboard: true
@@ -246,7 +214,7 @@ bot.action(["pay_click", "pay_payme", "pay_cash"], async (ctx) => {
     const userState = userSteps[userId];
     const cart = userCarts[userId] || [];
 
-    if (!userState || cart.length === 0) return ctx.answerCbQuery("Xatolik yuz berdi!");
+    if (!userState || cart.length === 0) return ctx.answerCbQuery("Xatolik!");
     ctx.answerCbQuery();
 
     let total = 0;
@@ -259,16 +227,19 @@ bot.action(["pay_click", "pay_payme", "pay_cash"], async (ctx) => {
         userState.data.payment = "💵 Naqd";
         try {
             await ctx.deleteMessage(ctx.callbackQuery.message.message_id);
-        } catch (e) { console.error(e); }
+        } catch (e) {}
         return sendOrderToAdmin(ctx, userState, cart, total);
     }
 
     let providerToken = ctx.callbackQuery.data === "pay_click" ? CLICK_TOKEN : PAYME_TOKEN;
     userState.data.payment = ctx.callbackQuery.data === "pay_click" ? "🟢 Click" : "🔵 Payme";
 
+    if (!providerToken || providerToken.includes("PASTGA")) {
+        return ctx.reply("⚠️ Tanlangan to'lov tizimi hozircha sozlanmagan. Iltimos, Naqd pul to'lovini tanlang.");
+    }
+
     try {
         await ctx.deleteMessage(ctx.callbackQuery.message.message_id);
-        
         await ctx.replyWithInvoice({
             title: "Assorti Food Buyurtma",
             description: `${userState.data.name} uchun taomlar buyurtmasi`,
@@ -280,7 +251,7 @@ bot.action(["pay_click", "pay_payme", "pay_cash"], async (ctx) => {
         });
     } catch (err) {
         console.error("Invoice xatosi:", err);
-        ctx.reply("⚠️ To'lov tizimida texnik cheklov bor. Iltimos, Naqd pul to'lov turini tanlang.");
+        ctx.reply("⚠️ To'lov tizimida cheklov bor. Iltimos, Naqd pul orqali to'lashni tanlang.");
     }
 });
 
@@ -296,11 +267,9 @@ bot.on("successful_payment", async (ctx) => {
     if (userState) {
         userState.data.payment += " ✅ (To'landi)";
         let total = ctx.message.successful_payment.total_amount / 100;
-        
         try {
             await ctx.deleteMessage(ctx.message.message_id);
-        } catch (e) { console.error(e); }
-
+        } catch (e) {}
         await sendOrderToAdmin(ctx, userState, cart, total);
     }
 });
@@ -316,7 +285,7 @@ async function sendOrderToAdmin(ctx, userState, cart, total) {
     adminText += `\n💰 Umumiy summa: ${total.toLocaleString('uz-UZ')} so'm\n━━━━━━━━━━━━━━━━━━━━━━\n`;
 
     if (userState.data.locationType === "text") {
-        adminText += `\n📍 Kiritilgan Manzil:\n📝 ${userState.data.locationData}`;
+        adminText += `\n📍 Kiritilgan Manzil (Qo'lda yozilgan):\n📝 ${userState.data.locationData}`;
     } else if (userState.data.locationType === "gps") {
         const lat = userState.data.locationData.latitude;
         const lon = userState.data.locationData.longitude;
