@@ -311,7 +311,7 @@ async function sendOrderToAdmin(ctx, userState, cart, total) {
         const lat = userState.data.locationData.latitude;
         const lon = userState.data.locationData.longitude;
         adminText += `\n📍 Kuryer uchun Google Xarita:\nhttps://www.google.com/maps/search/?api=1&query=${lat},${lon}\n`;
-        adminText += `\n📍 Yandeks Navigator:\nhttps://yandex.ru/maps/?ll=${lon},${lat}&z=16&l=map&pt=${lon},${lat},pm2rdm`;
+        adminText += `\n📍 Yandeks Navigator:\nhttps://yandex.ru/maps/?ll=${lon},${lat}&z=17&l=map&pt=${lon},${lat},pm2rdm`;
     }
 
     try {
