@@ -188,13 +188,36 @@ bot.action(["del_delivery", "del_pickup"], (ctx) => {
     }
 });
 
-bot.on("location", (ctx) => {
+bot.command('get_location', (ctx) => {
+    ctx.reply(
+        "📍 *Yetkazib berish manzilini aniqlaymiz.*\n\n" +
+        "Iltimos, pastdagi 'Joylashuvni yuborish' tugmasini bosing. " +
+        "_(Agar marker noto'g'ri bo'lsa, xaritani qo'lingiz bilan surib, uyingiz binosini aniq belgilang)_", 
+        {
+            parse_mode: 'Markdown',
+            reply_markup: {
+                keyboard: [
+                    [{ text: "📍 Joylashuvni yuborish", request_location: true }],
+                    [{ text: "✍️ Manzilni qo'lda yozish" }]
+                ],
+                resize_keyboard: true,
+                one_time_keyboard: true
+            }
+        }
+    );
+});
+
+bot.on('location', async (ctx) => {
     const userId = ctx.from.id;
     const userState = userSteps[userId];
+    
     if (userState && userState.step === "WAITING_LOCATION") {
         userState.data.locationType = "gps";
-        userState.data.locationData = { latitude: ctx.message.location.latitude, longitude: ctx.message.location.longitude };
-        goToPaymentStep(ctx, userState, "5-bosqich"); 
+        userState.data.locationData = {
+            latitude: ctx.message.location.latitude,
+            longitude: ctx.message.location.longitude
+        };
+        return goToPaymentStep(ctx, userState, "5-bosqich");
     }
 });
 
@@ -287,15 +310,18 @@ async function sendOrderToAdmin(ctx, userState, cart, total) {
     } else if (userState.data.locationType === "gps") {
         const lat = userState.data.locationData.latitude;
         const lon = userState.data.locationData.longitude;
-        adminText += `\n📍 Kuryer uchun Google Xarita:\nhttps://www.google.com/maps/place/${lat},${lon}\n`;
-        adminText += `\n📍 Yandeks Navigator:\nhttps://yandex.com/maps/?ll=${lon},${lat}&z=16&l=map&pt=${lon},${lat},pm2rdm`;
+        adminText += `\n📍 Kuryer uchun Google Xarita:\nhttps://www.google.com/maps/search/?api=1&query=${lat},${lon}\n`;
+        adminText += `\n📍 Yandeks Navigator:\nhttps://yandex.ru/maps/?ll=${lon},${lat}&z=16&l=map&pt=${lon},${lat},pm2rdm`;
     }
 
     try {
         const msg = await ctx.telegram.sendMessage(ADMIN_ID, adminText);
         
         if (userState.data.locationType === "gps") {
-            await ctx.telegram.sendLocation(ADMIN_ID, userState.data.locationData.latitude, userState.data.locationData.longitude, { reply_to_message_id: msg.message_id });
+            await ctx.telegram.sendLocation(ADMIN_ID, userState.data.locationData.latitude, userState.data.locationData.longitude, { 
+                reply_to_message_id: msg.message_id,
+                live_period: 900 
+            });
         }
         
         userCarts[userId] = []; 
