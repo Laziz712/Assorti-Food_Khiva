@@ -1,6 +1,20 @@
-require('dotenv').config();
+require('dotenv').config({ path: 'mongo.env' });
+const mongoose = require('mongoose');
 const { Telegraf } = require('telegraf');
 const express = require('express');
+
+const dbURI = process.env.MONGO_URI;
+
+async function connectDB() {
+    try {
+        await mongoose.connect(dbURI);
+        console.log('MongoDB muvaffaqiyatli ulandi!');
+    } catch (err) {
+        console.error('Ulanish xatosi:', err);
+    }
+}
+
+connectDB();
 
 const BOT_TOKEN = process.env.BOT_TOKEN || "8854792431:AAEqBTYvlzWiwebccUHT41qC92yOtDuGkNE"; 
 const ADMIN_ID = process.env.ADMIN_ID || "8584049635"; 
