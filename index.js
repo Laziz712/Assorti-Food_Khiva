@@ -3,6 +3,13 @@ const { Telegraf } = require('telegraf');
 const mongoose = require('mongoose');
 const express = require('express');
 
+console.log("Tekshiruv: MONGO_URI qiymati ->", process.env.MONGO_URI);
+
+if (!process.env.MONGO_URI) {
+    console.error("XATO: mongo.env fayli ichidagi MONGO_URI topilmadi!");
+    process.exit(1);
+}
+
 const dbURI = process.env.MONGO_URI;
 
 async function connectDB() {
