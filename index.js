@@ -1,6 +1,5 @@
 require('dotenv').config({ path: 'mongo.env' });
 const { Telegraf } = require('telegraf');
-const mongoose = require('mongoose');
 const express = require('express');
 const mongoose = require('mongoose');
 
