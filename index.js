@@ -1,16 +1,17 @@
 require('dotenv').config({ path: 'mongo.env' });
 const mongoose = require('mongoose');
-const { Telegraf } = require('telegraf');
-const express = require('express');
 
 const dbURI = process.env.MONGO_URI;
 
 async function connectDB() {
     try {
-        await mongoose.connect(dbURI);
+        console.log("Ulanish harakati boshlandi...");
+        await mongoose.connect(dbURI, {
+            serverSelectionTimeoutMS: 5000 
+        });
         console.log('MongoDB muvaffaqiyatli ulandi!');
     } catch (err) {
-        console.error('Ulanish xatosi:', err);
+        console.error('Ulanish xatosi:', err.message);
     }
 }
 
