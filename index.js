@@ -1,30 +1,30 @@
-require('dotenv').config({ path: 'mongo.env' });
+// require('dotenv').config({ path: 'mongo.env' });
 const { Telegraf } = require('telegraf');
-const mongoose = require('mongoose');
-const express = require('express');
+// const mongoose = require('mongoose');
+// const express = require('express');
 
-console.log("Tekshiruv: MONGO_URI qiymati ->", process.env.MONGO_URI);
+// console.log("Tekshiruv: MONGO_URI qiymati ->", process.env.MONGO_URI);
 
-if (!process.env.MONGO_URI) {
-    console.error("XATO: mongo.env fayli ichidagi MONGO_URI topilmadi!");
-    process.exit(1);
-}
+// if (!process.env.MONGO_URI) {
+//     console.error("XATO: mongo.env fayli ichidagi MONGO_URI topilmadi!");
+//     process.exit(1);
+// }
 
-const dbURI = process.env.MONGO_URI;
+// const dbURI = process.env.MONGO_URI;
 
-async function connectDB() {
-    try {
-        console.log("Ulanish harakati boshlandi...");
-        await mongoose.connect(dbURI, {
-            serverSelectionTimeoutMS: 5000 
-        });
-        console.log('MongoDB muvaffaqiyatli ulandi!');
-    } catch (err) {
-        console.error('Ulanish xatosi:', err.message);
-    }
-}
+// async function connectDB() {
+//     try {
+//         console.log("Ulanish harakati boshlandi...");
+//         await mongoose.connect(dbURI, {
+//             serverSelectionTimeoutMS: 5000 
+//         });
+//         console.log('MongoDB muvaffaqiyatli ulandi!');
+//     } catch (err) {
+//         console.error('Ulanish xatosi:', err.message);
+//     }
+// }
 
-connectDB();
+// connectDB();
 
 const BOT_TOKEN = process.env.BOT_TOKEN || "8854792431:AAEqBTYvlzWiwebccUHT41qC92yOtDuGkNE"; 
 const ADMIN_ID = process.env.ADMIN_ID || "8584049635"; 
