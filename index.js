@@ -2,7 +2,13 @@ require('dotenv').config({ path: 'mongo.env' });
 const { Telegraf } = require('telegraf');
 const mongoose = require('mongoose');
 const express = require('express');
-const dbURI = process.env.MONGO_URI;
+const mongoose = require('mongoose');
+
+const dbURI = "mongodb+srv://shavkatovv:laziz712.@cluster0.wupoksj.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0";
+
+mongoose.connect(dbURI)
+    .then(() => console.log("Muvaffaqiyatli ulandi: MongoDB Atlas!"))
+    .catch((err) => console.log("Ulanish xatosi:", err));
 
 async function connectDB() {
     try {
