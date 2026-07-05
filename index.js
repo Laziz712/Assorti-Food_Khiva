@@ -1,4 +1,5 @@
 require('dotenv').config({ path: 'mongo.env' });
+const { Telegraf } = require('telegraf');
 const mongoose = require('mongoose');
 
 const dbURI = process.env.MONGO_URI;
