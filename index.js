@@ -2,6 +2,18 @@ require('dotenv').config({ path: 'mongo.env' });
 const { Telegraf } = require('telegraf');
 const express = require('express');
 const mongoose = require('mongoose');
+mongoose.connect(process.env.MONGO_URI)
+    .then(() => console.log("MongoDB-ga muvaffaqiyatli ulandik! ✅"))
+    .catch((err) => console.error("Baza ulanishida xatolik: ❌", err));
+
+const UserSchema = new mongoose.Schema({
+    telegramId: { type: String, required: true, unique: true },
+    firstName: { type: String },
+    username: { type: String },
+    createdAt: { type: Date, default: Date.now }
+});
+
+module.exports = mongoose.model('User', UserSchema);
 
 const dbURI = "mongodb+srv://shavkatovv:laziz712.@cluster0.wupoksj.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0";
 
