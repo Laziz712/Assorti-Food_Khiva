@@ -2,9 +2,8 @@ require('dotenv').config({ path: 'mongo.env' });
 const { Telegraf } = require('telegraf');
 const express = require('express');
 const mongoose = require('mongoose');
-mongoose.connect(process.env.MONGO_URI)
-    .then(() => console.log("MongoDB-ga muvaffaqiyatli ulandik! ✅"))
-    .catch((err) => console.error("Baza ulanishida xatolik: ❌", err));
+
+const dbURI = "mongodb+srv://shavkatovv:laziz712.@cluster0.wupoksj.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0";
 
 const UserSchema = new mongoose.Schema({
     telegramId: { type: String, required: true, unique: true },
@@ -12,24 +11,16 @@ const UserSchema = new mongoose.Schema({
     username: { type: String },
     createdAt: { type: Date, default: Date.now }
 });
-
-module.exports = mongoose.model('User', UserSchema);
-
-const dbURI = "mongodb+srv://shavkatovv:laziz712.@cluster0.wupoksj.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0";
-
-mongoose.connect(dbURI)
-    .then(() => console.log("Muvaffaqiyatli ulandi: MongoDB Atlas!"))
-    .catch((err) => console.log("Ulanish xatosi:", err));
+const User = mongoose.model('User', UserSchema);
 
 async function connectDB() {
     try {
-        if (!dbURI) {
-            throw new Error("MONGO_URI topilmadi! mongo.env faylni tekshiring.");
-        }
-        await mongoose.connect(dbURI);
-        console.log("Muvaffaqiyatli ulandi: MongoDB Atlas!");
+        await mongoose.connect(dbURI, {
+            family: 4 
+        });
+        console.log("MongoDB-ga muvaffaqiyatli ulandik! ✅");
     } catch (error) {
-        console.error("Ulanish xatosi:", error.message);
+        console.error("Ulanish xatosi: ❌", error.message);
     }
 }
 
