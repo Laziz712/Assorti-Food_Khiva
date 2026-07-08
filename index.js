@@ -3,7 +3,7 @@ const { Telegraf } = require('telegraf');
 const express = require('express');
 const mongoose = require('mongoose');
 
-const dbURI = "mongodb+srv://shavkatovv:laziz712.@cluster0.wupoksj.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0";
+const dbURI = "mongodb://shavkatovv:laziz712.@ac-ecylddr-shard-00-00.wupoksj.mongodb.net:27017,ac-ecylddr-shard-00-01.wupoksj.mongodb.net:27017,ac-ecylddr-shard-00-02.wupoksj.mongodb.net:27017/?ssl=true&replicaSet=atlas-ew4ozx-shard-0&authSource=admin&appName=Cluster0";
 
 const UserSchema = new mongoose.Schema({
     telegramId: { type: String, required: true, unique: true },
