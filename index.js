@@ -1,8 +1,10 @@
 require('dotenv').config({ path: 'mongo.env' });
 const fs = require('fs');
 const { Telegraf } = require('telegraf');
-const express = require('express');
 const mongoose = require('mongoose');
+
+const BOT_TOKEN = "8854792431:AAEqBTYvlzWiwebccUHT41qC92yOtDuGkNE"; 
+const bot1 = new Telegraf(BOT_TOKEN);
 
 const dbURI = "mongodb://shavkatovv:laziz712.@ac-ecylddr-shard-00-00.wupoksj.mongodb.net:27017,ac-ecylddr-shard-00-01.wupoksj.mongodb.net:27017,ac-ecylddr-shard-00-02.wupoksj.mongodb.net:27017/?ssl=true&replicaSet=atlas-ew4ozx-shard-0&authSource=admin&appName=Cluster0";
 
@@ -16,9 +18,7 @@ const User = mongoose.model('User', UserSchema);
 
 async function connectDB() {
     try {
-        await mongoose.connect(dbURI, {
-            family: 4 
-        });
+        await mongoose.connect(dbURI, { family: 4 });
         console.log("MongoDB-ga muvaffaqiyatli ulandik! ✅");
     } catch (error) {
         console.error("Ulanish xatosi: ❌", error.message);
@@ -26,47 +26,39 @@ async function connectDB() {
 }
 
 function saveUserToJson(user) {
-
     let users = [];
-
     if (fs.existsSync('users.json')) {
-
         const data = fs.readFileSync('users.json', 'utf8');
-
-        users = JSON.parse(data);
-
+        try {
+            users = JSON.parse(data);
+        } catch (e) {
+            users = [];
+        }
     }
 
-
-    users.push(user);
-
-    fs.writeFileSync('users.json', JSON.stringify(users, null, 2));
-
+    if (!users.find(u => u.telegramId === user.telegramId)) {
+        users.push(user);
+        fs.writeFileSync('users.json', JSON.stringify(users, null, 2));
+    }
 }
 
-bot.start(async (ctx) => {
-
+bot1.start(async (ctx) => {
     const newUser = {
-
-        telegramId: ctx.from.id,
-
+        telegramId: String(ctx.from.id),
         firstName: ctx.from.first_name,
-
         username: ctx.from.username
-
     };
 
-    await User.create(newUser).catch(() => console.log("User allaqachon bor"));
-
+    await User.create(newUser).catch(() => console.log("User allaqachon bazada bor"));
     saveUserToJson(newUser);
 
     ctx.reply("Assalomu alaykum! Bazaga qo'shildingiz.");
-
 });
 
 connectDB();
+bot1.launch();
+console.log("Bot ishga tushdi...");
 
-const BOT_TOKEN = process.env.BOT_TOKEN || "8854792431:AAEqBTYvlzWiwebccUHT41qC92yOtDuGkNE"; 
 const ADMIN_ID = process.env.ADMIN_ID || "8584049635"; 
 const CLICK_TOKEN = process.env.CLICK_TOKEN || "398062629:TEST:999999999_F91D8F69C042267444B74CC0B3C747757EB0E065";
 const PAYME_TOKEN = process.env.PAYME_TOKEN || "371317599:TEST:1781100758907"; 
