@@ -1,4 +1,5 @@
 require('dotenv').config({ path: 'mongo.env' });
+const fs = require('fs');
 const { Telegraf } = require('telegraf');
 const express = require('express');
 const mongoose = require('mongoose');
@@ -23,6 +24,45 @@ async function connectDB() {
         console.error("Ulanish xatosi: ❌", error.message);
     }
 }
+
+function saveUserToJson(user) {
+
+    let users = [];
+
+    if (fs.existsSync('users.json')) {
+
+        const data = fs.readFileSync('users.json', 'utf8');
+
+        users = JSON.parse(data);
+
+    }
+
+
+    users.push(user);
+
+    fs.writeFileSync('users.json', JSON.stringify(users, null, 2));
+
+}
+
+bot.start(async (ctx) => {
+
+    const newUser = {
+
+        telegramId: ctx.from.id,
+
+        firstName: ctx.from.first_name,
+
+        username: ctx.from.username
+
+    };
+
+    await User.create(newUser).catch(() => console.log("User allaqachon bor"));
+
+    saveUserToJson(newUser);
+
+    ctx.reply("Assalomu alaykum! Bazaga qo'shildingiz.");
+
+});
 
 connectDB();
 
