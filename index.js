@@ -2,78 +2,59 @@ require('dotenv').config({ path: 'mongo.env' });
 const fs = require('fs');
 const { Telegraf } = require('telegraf');
 const mongoose = require('mongoose');
-
-const BOT_TOKEN = "8854792431:AAEqBTYvlzWiwebccUHT41qC92yOtDuGkNE"; 
-const bot1 = new Telegraf(BOT_TOKEN);
-
-const dbURI = "mongodb://shavkatovv:laziz712.@ac-ecylddr-shard-00-00.wupoksj.mongodb.net:27017,ac-ecylddr-shard-00-01.wupoksj.mongodb.net:27017,ac-ecylddr-shard-00-02.wupoksj.mongodb.net:27017/?ssl=true&replicaSet=atlas-ew4ozx-shard-0&authSource=admin&appName=Cluster0";
-
+const express = require('express');
+ 
+const BOT_TOKEN  = process.env.BOT_TOKEN  || "8854792431:AAEqBTYvlzWiwebccUHT41qC92yOtDuGkNE";
+const ADMIN_ID   = process.env.ADMIN_ID   || "8584049635";
+const CLICK_TOKEN  = process.env.CLICK_TOKEN  || "398062629:TEST:999999999_F91D8F69C042267444B74CC0B3C747757EB0E065";
+const PAYME_TOKEN  = process.env.PAYME_TOKEN  || "371317599:TEST:1781100758907";
+const MONGO_URI  = process.env.MONGO_URI;
+ 
+if (!BOT_TOKEN) {
+    console.error("Xatolik: BOT_TOKEN topilmadi!");
+    process.exit(1);
+}
+if (!MONGO_URI) {
+    console.error("Xatolik: MONGO_URI topilmadi! mongo.env faylini tekshiring.");
+    process.exit(1);
+}
+ 
 const UserSchema = new mongoose.Schema({
     telegramId: { type: String, required: true, unique: true },
-    firstName: { type: String },
-    username: { type: String },
-    createdAt: { type: Date, default: Date.now }
+    firstName:  { type: String },
+    username:   { type: String },
+    createdAt:  { type: Date, default: Date.now }
 });
 const User = mongoose.model('User', UserSchema);
-
+ 
 async function connectDB() {
     try {
-        await mongoose.connect(dbURI, { family: 4 });
-        console.log("MongoDB-ga muvaffaqiyatli ulandik! ✅");
+        await mongoose.connect(MONGO_URI);
+        console.log("MongoDB ga muvaffaqiyatli ulandik! ✅");
     } catch (error) {
-        console.error("Ulanish xatosi: ❌", error.message);
+        console.error("MongoDB ulanish xatosi ❌:", error.message);
+        process.exit(1);
     }
 }
-
+ 
 function saveUserToJson(user) {
     let users = [];
     if (fs.existsSync('users.json')) {
-        const data = fs.readFileSync('users.json', 'utf8');
-        try {
-            users = JSON.parse(data);
-        } catch (e) {
-            users = [];
-        }
+        try { users = JSON.parse(fs.readFileSync('users.json', 'utf8')); }
+        catch (e) { users = []; }
     }
-
     if (!users.find(u => u.telegramId === user.telegramId)) {
         users.push(user);
         fs.writeFileSync('users.json', JSON.stringify(users, null, 2));
     }
 }
-
-bot1.start(async (ctx) => {
-    const newUser = {
-        telegramId: String(ctx.from.id),
-        firstName: ctx.from.first_name,
-        username: ctx.from.username
-    };
-
-    await User.create(newUser).catch(() => console.log("User allaqachon bazada bor"));
-    saveUserToJson(newUser);
-
-    ctx.reply("Assalomu alaykum! Bazaga qo'shildingiz.");
-});
-
-connectDB();
-bot1.launch();
-console.log("Bot ishga tushdi...");
-
-const ADMIN_ID = process.env.ADMIN_ID || "8584049635"; 
-const CLICK_TOKEN = process.env.CLICK_TOKEN || "398062629:TEST:999999999_F91D8F69C042267444B74CC0B3C747757EB0E065";
-const PAYME_TOKEN = process.env.PAYME_TOKEN || "371317599:TEST:1781100758907"; 
-
-if (!BOT_TOKEN) {
-    console.error("Xatolik: BOT_TOKEN topilmadi!");
-    process.exit(1);
-}
-
+ 
 const bot = new Telegraf(BOT_TOKEN);
 const app = express();
-
+ 
 const userCarts = {};
 const userSteps = {};
-
+ 
 const mainKeyboard = {
     reply_markup: {
         keyboard: [
@@ -84,21 +65,38 @@ const mainKeyboard = {
         resize_keyboard: true
     }
 };
-
+ 
 const products = {
-    burger: { name: "🌭 Xot-Dog", price: 15000, image: "https://i.pinimg.com/736x/fc/f8/25/fcf825ad35e7084bb5a845845e0cff91.jpg" },
-    lavash: { name: "🌯 Lavash", price: 35000, image: "https://i.pinimg.com/736x/37/64/87/37648797115b6c41fe2c2afda620e4f1.jpg" },
-    pizza: { name: "🍕 Pitsa Assorti", price: 75000, image: "https://i.pinimg.com/736x/c6/f0/64/c6f064ed1e92e2e864672f396b7fd8a7.jpg" },
-    cola: { name: "🥤 Coca-Cola 1.5L", price: 15000, image: "https://images.uzum.uz/cia493tenntd8rfc2s40/original.jpg" }
+    burger: { name: "🌭 Xot-Dog",        price: 15000, image: "https://i.pinimg.com/736x/fc/f8/25/fcf825ad35e7084bb5a845845e0cff91.jpg" },
+    lavash: { name: "🌯 Lavash",          price: 35000, image: "https://i.pinimg.com/736x/37/64/87/37648797115b6c41fe2c2afda620e4f1.jpg" },
+    pizza:  { name: "🍕 Pitsa Assorti",  price: 75000, image: "https://i.pinimg.com/736x/c6/f0/64/c6f064ed1e92e2e864672f396b7fd8a7.jpg" },
+    cola:   { name: "🥤 Coca-Cola 1.5L", price: 15000, image: "https://images.uzum.uz/cia493tenntd8rfc2s40/original.jpg" }
 };
-
+ 
 bot.start(async (ctx) => {
-    const userId = ctx.from.id;
-    userCarts[userId] = [];
-    delete userSteps[userId];
-    ctx.reply(`✨ Assorti Food Khiva botiga xush kelibsiz!\n\n👇 Quyidagi menyudan kerakli bo'limni tanlang:`, mainKeyboard);
+    const newUser = {
+        telegramId: String(ctx.from.id),
+        firstName:  ctx.from.first_name,
+        username:   ctx.from.username
+    };
+ 
+    await User.findOneAndUpdate(
+        { telegramId: newUser.telegramId },
+        newUser,
+        { upsert: true, new: true }
+    ).catch(err => console.error("DB saqlash xatosi:", err.message));
+ 
+    saveUserToJson(newUser);
+ 
+    userCarts[ctx.from.id] = [];
+    delete userSteps[ctx.from.id];
+ 
+    ctx.reply(
+        `✨ Assorti Food Khiva botiga xush kelibsiz!\n\n👇 Quyidagi menyudan kerakli bo'limni tanlang:`,
+        mainKeyboard
+    );
 });
-
+ 
 bot.hears("🍔 Menyu", async (ctx) => {
     delete userSteps[ctx.from.id];
     await ctx.reply("✨ Assorti Food chiroyli menyusi yuklanmoqda...");
@@ -107,25 +105,24 @@ bot.hears("🍔 Menyu", async (ctx) => {
         return ctx.replyWithPhoto(item.image, {
             caption: `✨ ${item.name}\n\n💰 Narxi: ${item.price.toLocaleString('uz-UZ')} so'm`,
             reply_markup: { inline_keyboard: [[{ text: "📥 Savatga qo'shish", callback_data: `add_${key}` }]] }
-        }).catch(err => console.error(err));
+        }).catch(err => console.error("Rasm yuborish xatosi:", err.message));
     });
     await Promise.all(promises);
 });
-
+ 
 bot.hears("🛒 Savat", (ctx) => {
     delete userSteps[ctx.from.id];
-    const userId = ctx.from.id;
-    const cart = userCarts[userId] || [];
+    const cart = userCarts[ctx.from.id] || [];
     if (cart.length === 0) return ctx.reply("🛒 Sizning savatingiz bo'sh!");
-    
+ 
     let text = "🛒 Sizning savatingiz:\n\n";
     let total = 0;
-    cart.forEach((item, index) => {
-        text += `${index + 1}. ${item.name} — ${item.price.toLocaleString('uz-UZ')} so'm\n`;
+    cart.forEach((item, i) => {
+        text += `${i + 1}. ${item.name} — ${item.price.toLocaleString('uz-UZ')} so'm\n`;
         total += item.price;
     });
     text += `\n💰 Jami hisob: ${total.toLocaleString('uz-UZ')} so'm`;
-    
+ 
     ctx.reply(text, {
         reply_markup: {
             inline_keyboard: [
@@ -135,18 +132,18 @@ bot.hears("🛒 Savat", (ctx) => {
         }
     });
 });
-
+ 
 bot.hears("📍 Bizning Manzil", async (ctx) => {
-    delete userSteps[ctx.from.id]; 
-    await ctx.reply(`📍 Assorti Food Khiva lokatsiyasi:\n\n🗺 Quyidagi xarita orqali manzilimizni topishingiz mumkin:`);
+    delete userSteps[ctx.from.id];
+    await ctx.reply("📍 Assorti Food Khiva lokatsiyasi:\n\n🗺 Quyidagi xarita orqali manzilimizni topishingiz mumkin:");
     await ctx.replyWithLocation(41.397776, 60.3598305);
 });
-
+ 
 bot.hears("📞 Admin bilan aloqa", (ctx) => {
-    delete userSteps[ctx.from.id]; 
-    ctx.reply(`📞 Admin bilan aloqa\n\n 👨‍💻 Admin: @lazizshavkatov712\n ☎️ Telefon: +998972815050`);
+    delete userSteps[ctx.from.id];
+    ctx.reply("📞 Admin bilan aloqa\n\n👨‍💻 Admin: @lazizshavkatov712\n☎️ Telefon: +998972815050");
 });
-
+ 
 Object.keys(products).forEach(key => {
     bot.action(`add_${key}`, (ctx) => {
         const userId = ctx.from.id;
@@ -155,28 +152,30 @@ Object.keys(products).forEach(key => {
         ctx.answerCbQuery(`${products[key].name} savatga qo'shildi! ✅`);
     });
 });
-
+ 
 bot.action("clear_cart", (ctx) => {
     userCarts[ctx.from.id] = [];
     ctx.answerCbQuery("Savat tozalandi! 🗑");
     ctx.editMessageText("🗑 Savatingiz tozalandi.");
 });
-
+ 
 bot.action("start_order", (ctx) => {
     const userId = ctx.from.id;
     userSteps[userId] = { step: "WAITING_NAME", data: {} };
     ctx.answerCbQuery();
     ctx.reply("👤 1-bosqich. Iltimos, ismingizni kiriting:", { reply_markup: { remove_keyboard: true } });
 });
-
+ 
+const menuTexts = ["🍔 Menyu", "🛒 Savat", "📍 Bizning Manzil", "📞 Admin bilan aloqa"];
+ 
 bot.on("text", async (ctx) => {
-    const userId = ctx.from.id;
+    const userId    = ctx.from.id;
     const userState = userSteps[userId];
-    const text = ctx.message.text;
-
-    if (text === "🍔 Menyu" || text === "🛒 Savat" || text === "📍 Bizning Manzil" || text === "📞 Admin bilan aloqa") return; 
+    const text      = ctx.message.text;
+ 
+    if (menuTexts.includes(text)) return;
     if (!userState) return ctx.reply("Iltimos, quyidagi menyudan foydalaning:", mainKeyboard);
-
+ 
     if (userState.step === "WAITING_NAME") {
         userState.data.name = text;
         userState.step = "WAITING_PHONE";
@@ -187,29 +186,41 @@ bot.on("text", async (ctx) => {
             }
         });
     }
-
+ 
     if (userState.step === "WAITING_PHONE") {
         userState.data.phone = text.trim().replace('+', '');
         return goToDeliveryStep(ctx, userState);
     }
-
+ 
     if (userState.step === "WAITING_LOCATION") {
         userState.data.locationType = "text";
-        userState.data.locationData = text; 
-        return goToPaymentStep(ctx, userState, "5-bosqich"); 
+        userState.data.locationData = text;
+        return goToPaymentStep(ctx, userState, "5-bosqich");
     }
 });
-
+ 
 bot.on("contact", (ctx) => {
-    const userId = ctx.from.id;
+    const userId    = ctx.from.id;
     const userState = userSteps[userId];
     if (userState && userState.step === "WAITING_PHONE") {
-        let phone = ctx.message.contact.phone_number;
-        userState.data.phone = phone.replace('+', '');
+        userState.data.phone = ctx.message.contact.phone_number.replace('+', '');
         goToDeliveryStep(ctx, userState);
     }
 });
-
+ 
+bot.on("location", async (ctx) => {
+    const userId    = ctx.from.id;
+    const userState = userSteps[userId];
+    if (userState && userState.step === "WAITING_LOCATION") {
+        userState.data.locationType = "gps";
+        userState.data.locationData = {
+            latitude:  ctx.message.location.latitude,
+            longitude: ctx.message.location.longitude
+        };
+        return goToPaymentStep(ctx, userState, "5-bosqich");
+    }
+});
+ 
 function goToDeliveryStep(ctx, userState) {
     userState.step = "WAITING_DELIVERY";
     ctx.reply("🚖 3-bosqich. Yetkazib berish turini tanlang:", {
@@ -221,17 +232,17 @@ function goToDeliveryStep(ctx, userState) {
         }
     });
 }
-
+ 
 bot.action(["del_delivery", "del_pickup"], (ctx) => {
-    const userId = ctx.from.id;
+    const userId    = ctx.from.id;
     const userState = userSteps[userId];
     if (!userState) return ctx.reply("Xatolik yuz berdi, /start bosing.");
     ctx.answerCbQuery();
-
+ 
     if (ctx.callbackQuery.data === "del_delivery") {
         userState.data.delivery = "🛵 Dostavka";
         userState.step = "WAITING_LOCATION";
-        ctx.reply("📍 4-bosqich. Yetkazib berish manzilini pastdagi tugma orqali GPS lokatsiya qilib yuboring yoki shu yerga matn shaklida ko'cha va uy raqamini yozing:", {
+        ctx.reply("📍 4-bosqich. Yetkazib berish manzilini yuboring:", {
             reply_markup: {
                 keyboard: [[{ text: "📍 Lokatsiyani yuborish (GPS)", request_location: true }]],
                 resize_keyboard: true, one_time_keyboard: true
@@ -243,40 +254,7 @@ bot.action(["del_delivery", "del_pickup"], (ctx) => {
         goToPaymentStep(ctx, userState, "4-bosqich");
     }
 });
-
-bot.command('get_location', (ctx) => {
-    ctx.reply(
-        "📍 *Yetkazib berish manzilini aniqlaymiz.*\n\n" +
-        "Iltimos, pastdagi 'Joylashuvni yuborish' tugmasini bosing. " +
-        "_(Agar marker noto'g'ri bo'lsa, xaritani qo'lingiz bilan surib, uyingiz binosini aniq belgilang)_", 
-        {
-            parse_mode: 'Markdown',
-            reply_markup: {
-                keyboard: [
-                    [{ text: "📍 Joylashuvni yuborish", request_location: true }],
-                    [{ text: "✍️ Manzilni qo'lda yozish" }]
-                ],
-                resize_keyboard: true,
-                one_time_keyboard: true
-            }
-        }
-    );
-});
-
-bot.on('location', async (ctx) => {
-    const userId = ctx.from.id;
-    const userState = userSteps[userId];
-    
-    if (userState && userState.step === "WAITING_LOCATION") {
-        userState.data.locationType = "gps";
-        userState.data.locationData = {
-            latitude: ctx.message.location.latitude,
-            longitude: ctx.message.location.longitude
-        };
-        return goToPaymentStep(ctx, userState, "5-bosqich");
-    }
-});
-
+ 
 function goToPaymentStep(ctx, userState, stepNumber) {
     userState.step = "WAITING_PAYMENT";
     ctx.reply(`💳 ${stepNumber}. To'lov turini tanlang:`, {
@@ -288,108 +266,125 @@ function goToPaymentStep(ctx, userState, stepNumber) {
         }
     });
 }
-
+ 
 bot.action(["pay_click", "pay_payme", "pay_cash"], async (ctx) => {
-    const userId = ctx.from.id;
+    const userId    = ctx.from.id;
     const userState = userSteps[userId];
-    const cart = userCarts[userId] || [];
-
+    const cart      = userCarts[userId] || [];
     if (!userState || cart.length === 0) return ctx.answerCbQuery("Xatolik!");
     ctx.answerCbQuery();
-
+ 
     let total = 0;
     const pricesList = cart.map(item => {
         total += item.price;
-        return { label: item.name, amount: Math.round(item.price * 100) }; 
+        return { label: item.name, amount: Math.round(item.price * 100) };
     });
-
+ 
     if (ctx.callbackQuery.data === "pay_cash") {
         userState.data.payment = "💵 Naqd";
-        try { await ctx.deleteMessage(ctx.callbackQuery.message.message_id); } catch (e) {}
+        try { await ctx.deleteMessage(); } catch (e) {}
         return sendOrderToAdmin(ctx, userState, cart, total);
     }
-
-    let providerToken = ctx.callbackQuery.data === "pay_click" ? CLICK_TOKEN : PAYME_TOKEN;
+ 
+    const providerToken = ctx.callbackQuery.data === "pay_click" ? CLICK_TOKEN : PAYME_TOKEN;
     userState.data.payment = ctx.callbackQuery.data === "pay_click" ? "🟢 Click" : "🔵 Payme";
-
-    if (!providerToken || providerToken.includes("PASTGA")) {
+ 
+    if (!providerToken) {
         return ctx.reply("⚠️ Bu to'lov tizimi ulanmagan. Iltimos Naqd pulni tanlang.");
     }
-
+ 
     try {
-        await ctx.deleteMessage(ctx.callbackQuery.message.message_id);
-        
+        await ctx.deleteMessage();
         await ctx.replyWithInvoice({
-            title: "Assorti Food Buyurtma",
-            description: `${userState.data.name} uchun taomlar buyurtmasi`,
-            payload: JSON.stringify({ userId: userId }), 
-            provider_token: providerToken,
-            currency: "UZS",
-            prices: pricesList,
+            title:           "Assorti Food Buyurtma",
+            description:     `${userState.data.name} uchun taomlar buyurtmasi`,
+            payload:         JSON.stringify({ userId }),
+            provider_token:  providerToken,
+            currency:        "UZS",
+            prices:          pricesList,
             start_parameter: "assorti-food-order"
         });
     } catch (err) {
-        console.error("Invoice xatosi:", err);
-        ctx.reply("⚠️ To'lov tizimida cheklov bor. Iltimos, Naqd pulni tanlang.");
+        console.error("Invoice xatosi:", err.message);
+        ctx.reply("⚠️ To'lov tizimida xatolik. Iltimos, Naqd pulni tanlang.");
     }
 });
-
-bot.on("pre_checkout_query", (ctx) => {
-    ctx.answerPreCheckoutQuery(true);
-});
-
+ 
+bot.on("pre_checkout_query", (ctx) => ctx.answerPreCheckoutQuery(true));
+ 
 bot.on("successful_payment", async (ctx) => {
-    const userId = ctx.from.id;
+    const userId    = ctx.from.id;
     const userState = userSteps[userId];
-    const cart = userCarts[userId] || [];
-    
-    if (userState) {
-        userState.data.payment += " ✅ (To'landi)";
-        let total = ctx.message.successful_payment.total_amount / 100;
-        try { await ctx.deleteMessage(ctx.message.message_id); } catch (e) {}
-        await sendOrderToAdmin(ctx, userState, cart, total);
-    }
+    const cart      = userCarts[userId] || [];
+    if (!userState) return;
+ 
+    userState.data.payment += " ✅ (To'landi)";
+    const total = ctx.message.successful_payment.total_amount / 100;
+    try { await ctx.deleteMessage(); } catch (e) {}
+    await sendOrderToAdmin(ctx, userState, cart, total);
 });
-
+ 
 async function sendOrderToAdmin(ctx, userState, cart, total) {
     const userId = ctx.from.id;
     let adminText = `🚨 ASSORTI FOOD: YANGI BUYURTMA! 🚨\n━━━━━━━━━━━━━━━━━━━━━━\n\n`;
-    adminText += `👤 Mijoz: ${userState.data.name}\n📞 Telefon: +${userState.data.phone}\n🚖 Tur: ${userState.data.delivery}\n💳 To'lov: ${userState.data.payment}\n🆔 ID: ${userId}\n\n📦 Taomlar:\n`;
-
-    cart.forEach((item, index) => {
-        adminText += `${index + 1}. ${item.name} — ${item.price.toLocaleString('uz-UZ')} so'm\n`;
+    adminText += `👤 Mijoz: ${userState.data.name}\n`;
+    adminText += `📞 Telefon: +${userState.data.phone}\n`;
+    adminText += `🚖 Tur: ${userState.data.delivery}\n`;
+    adminText += `💳 To'lov: ${userState.data.payment}\n`;
+    adminText += `🆔 ID: ${userId}\n\n📦 Taomlar:\n`;
+ 
+    cart.forEach((item, i) => {
+        adminText += `${i + 1}. ${item.name} — ${item.price.toLocaleString('uz-UZ')} so'm\n`;
     });
     adminText += `\n💰 Umumiy summa: ${total.toLocaleString('uz-UZ')} so'm\n━━━━━━━━━━━━━━━━━━━━━━\n`;
-
+ 
     if (userState.data.locationType === "text") {
-        adminText += `\n📍 Kiritilgan Manzil (Qo'lda yozilgan):\n📝 ${userState.data.locationData}`;
+        adminText += `\n📍 Manzil (Qo'lda yozilgan):\n📝 ${userState.data.locationData}`;
     } else if (userState.data.locationType === "gps") {
-        const lat = userState.data.locationData.latitude;
-        const lon = userState.data.locationData.longitude;
-        adminText += `\n📍 Kuryer uchun Google Xarita:\nhttps://www.google.com/maps/search/?api=1&query=${lat},${lon}\n`;
-        adminText += `\n📍 Yandeks Navigator:\nhttps://yandex.ru/maps/?ll=${lon},${lat}&z=17&l=map&pt=${lon},${lat},pm2rdm`;
+        const { latitude: lat, longitude: lon } = userState.data.locationData;
+        adminText += `\n📍 Google Xarita:\nhttps://www.google.com/maps/search/?api=1&query=${lat},${lon}\n`;
+        adminText += `\n📍 Yandeks Navigator:\nhttps://yandex.ru/maps/?ll=${lon},${lat}&z=17&pt=${lon},${lat},pm2rdm`;
     }
-
+ 
     try {
         const msg = await ctx.telegram.sendMessage(ADMIN_ID, adminText);
-        
+ 
         if (userState.data.locationType === "gps") {
-            await ctx.telegram.sendLocation(ADMIN_ID, userState.data.locationData.latitude, userState.data.locationData.longitude, { 
-                reply_to_message_id: msg.message_id,
-                live_period: 900 
-            });
+            await ctx.telegram.sendLocation(
+                ADMIN_ID,
+                userState.data.locationData.latitude,
+                userState.data.locationData.longitude,
+                { reply_to_message_id: msg.message_id }
+            );
         }
-        
-        userCarts[userId] = []; 
+ 
+        userCarts[userId] = [];
         delete userSteps[userId];
-        
-        await ctx.reply(`🎉 Rahmat! Buyurtmangiz muvaffaqiyatli qabul qilindi.\n\nOperatorlarimiz va kuryerlarimiz tez orada siz bilan bog'lanishadi.\n\n🔙 Siz asosiy menyuga qaytdingiz.`, mainKeyboard);
+ 
+        await ctx.reply(
+            "🎉 Rahmat! Buyurtmangiz muvaffaqiyatli qabul qilindi.\n\nOperatorlarimiz tez orada siz bilan bog'lanishadi.\n\n🔙 Siz asosiy menyuga qaytdingiz.",
+            mainKeyboard
+        );
     } catch (err) {
-        console.error(err);
+        console.error("Admin xabari xatosi:", err.message);
     }
 }
-
+ 
 const PORT = process.env.PORT || 10000;
-app.use(bot.webhookCallback('/bot'));
-app.get('/', (req, res) => res.send('Bot ishlayapti!'));
-app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+ 
+connectDB().then(() => {
+    if (process.env.WEBHOOK_URL) {
+        app.use(bot.webhookCallback('/bot'));
+        app.get('/', (req, res) => res.send('Bot ishlayapti!'));
+        app.listen(PORT, () => {
+            console.log(`Server port ${PORT} da ishga tushdi`);
+            bot.telegram.setWebhook(`${process.env.WEBHOOK_URL}/bot`);
+        });
+    } else {
+        bot.launch();
+        console.log("Bot polling rejimida ishga tushdi ✅");
+    }
+});
+ 
+process.once('SIGINT',  () => bot.stop('SIGINT'));
+process.once('SIGTERM', () => bot.stop('SIGTERM'));
