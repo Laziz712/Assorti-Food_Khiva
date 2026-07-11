@@ -1,7 +1,6 @@
 require('dotenv').config({ path: 'mongo.env' });
 const fs = require('fs');
 const { Telegraf } = require('telegraf');
-const mongoose = require('mongoose');
 const express = require('express');
  
 const BOT_TOKEN  = process.env.BOT_TOKEN  || "8854792431:AAEqBTYvlzWiwebccUHT41qC92yOtDuGkNE";
@@ -9,45 +8,6 @@ const ADMIN_ID   = process.env.ADMIN_ID   || "8584049635";
 const CLICK_TOKEN  = process.env.CLICK_TOKEN  || "398062629:TEST:999999999_F91D8F69C042267444B74CC0B3C747757EB0E065";
 const PAYME_TOKEN  = process.env.PAYME_TOKEN  || "371317599:TEST:1781100758907";
 const MONGO_URI  = process.env.MONGO_URI;
- 
-if (!BOT_TOKEN) {
-    console.error("Xatolik: BOT_TOKEN topilmadi!");
-    process.exit(1);
-}
-if (!MONGO_URI) {
-    console.error("Xatolik: MONGO_URI topilmadi! mongo.env faylini tekshiring.");
-    process.exit(1);
-}
- 
-const UserSchema = new mongoose.Schema({
-    telegramId: { type: String, required: true, unique: true },
-    firstName:  { type: String },
-    username:   { type: String },
-    createdAt:  { type: Date, default: Date.now }
-});
-const User = mongoose.model('User', UserSchema);
- 
-async function connectDB() {
-    try {
-        await mongoose.connect(MONGO_URI);
-        console.log("MongoDB ga muvaffaqiyatli ulandik! ✅");
-    } catch (error) {
-        console.error("MongoDB ulanish xatosi ❌:", error.message);
-        process.exit(1);
-    }
-}
- 
-function saveUserToJson(user) {
-    let users = [];
-    if (fs.existsSync('users.json')) {
-        try { users = JSON.parse(fs.readFileSync('users.json', 'utf8')); }
-        catch (e) { users = []; }
-    }
-    if (!users.find(u => u.telegramId === user.telegramId)) {
-        users.push(user);
-        fs.writeFileSync('users.json', JSON.stringify(users, null, 2));
-    }
-}
  
 const bot = new Telegraf(BOT_TOKEN);
 const app = express();
